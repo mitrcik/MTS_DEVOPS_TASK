@@ -31,6 +31,10 @@ load_env() {
   export CLUSTER_NAME BIND_ADDRESS INGRESS_PORT API_PORT REGISTRY_PORT REGISTRY_NAME \
     AGE_KEY_FILE ADMIN_KUBECONFIG DEPLOY_KUBECONFIG
   export PATH="${LOCAL_DIR}/bin:${PATH}"
+  # Полный CA-бандл за корпоративным TLS-прокси — для всех клиентов на хосте (Trivy, Helm, Python)
+  if [[ -n "${EXTRA_CA_BUNDLE:-}" && -z "${SSL_CERT_FILE:-}" ]]; then
+    export SSL_CERT_FILE="${EXTRA_CA_BUNDLE}"
+  fi
 }
 
 if [[ -t 2 ]]; then
