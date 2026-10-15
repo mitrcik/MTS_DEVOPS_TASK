@@ -1,0 +1,3 @@
+appNamespace: mts-app
+monitoringNamespace: monitoring
+podSecurityLevel: restricted

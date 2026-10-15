@@ -1,0 +1,16 @@
+# Начальная версия проходит тот же конвейер, что и любой релиз: lint → тесты → проверки
+# конфигурации → сборка → Trivy → публикация в локальный registry → blue-green релиз.
+# --if-needed: если эта версия этого коммита уже активна и здорова, ничего не пересобирается.
+- name: Конвейер и релиз начальной версии
+  ansible.builtin.command:
+    cmd: "{{ project_dir }}/scripts/release.sh --version {{ initial_version }} --if-needed"
+  register: initial_release
+  changed_when: "'уже активна' not in initial_release.stderr"
+  timeout: 1800
+
+- name: Smoke-проверка стенда (API через ingress, токен, Prometheus targets, алерты, Grafana)
+  ansible.builtin.command:
+    cmd: "{{ bgctl }} verify"
+  register: smoke
+  changed_when: false
+  timeout: 300

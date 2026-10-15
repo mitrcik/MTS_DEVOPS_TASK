@@ -1,0 +1,82 @@
+- name: Версия cgroup Docker-хоста
+  ansible.builtin.command:
+    argv: [docker, info, --format, "{{ '{{' }}.CgroupVersion{{ '}}' }}"]
+  register: cgroup_info
+  changed_when: false
+
+- name: Конфигурация k3d (версионированный шаблон)
+  ansible.builtin.template:
+    src: k3d-cluster.yaml.j2
+    dest: "{{ local_dir }}/k3d/cluster.yaml"
+    mode: "0600"
+  vars:
+    cgroup_version: "{{ cgroup_info.stdout | trim }}"
+
+- name: Существующие k3d-кластеры
+  ansible.builtin.command:
+    argv: ["{{ bin_dir }}/k3d", cluster, list, -o, json]
+  register: k3d_clusters
+  changed_when: false
+
+- name: Состояние кластера проекта
+  ansible.builtin.set_fact:
+    project_cluster: "{{ k3d_clusters.stdout | from_json | selectattr('name', 'equalto', cluster_name) | list | first | default({}) }}"
+
+- name: Создание кластера и registry (k3d)
+  when: project_cluster == {}
+  ansible.builtin.command:
+    cmd: "{{ bin_dir }}/k3d cluster create --config {{ local_dir }}/k3d/cluster.yaml {{ k3d_extra_args }}"
+  timeout: 900
+  register: k3d_create
+  changed_when: true
+
+- name: Запуск остановленного кластера
+  when:
+    - project_cluster != {}
+    - (project_cluster.serversRunning | default(0)) < (project_cluster.serversCount | default(1))
+  ansible.builtin.command:
+    argv: ["{{ bin_dir }}/k3d", cluster, start, "{{ cluster_name }}", --wait, --timeout, 300s]
+  timeout: 420
+  changed_when: true
+
+- name: Kubeconfig администратора кластера (только для bootstrap)
+  ansible.builtin.command:
+    argv: ["{{ bin_dir }}/k3d", kubeconfig, get, "{{ cluster_name }}"]
+  register: k3d_kubeconfig
+  changed_when: false
+  no_log: true
+
+- name: Сохранение kubeconfig администратора (0600, вне ~/.kube)
+  ansible.builtin.copy:
+    content: "{{ k3d_kubeconfig.stdout }}\n"
+    dest: "{{ admin_kubeconfig }}"
+    mode: "0600"
+  no_log: true
+
+- name: Узел готов
+  ansible.builtin.command:
+    cmd: "{{ kubectl_admin }} wait --for=condition=Ready node --all --timeout=180s"
+  changed_when: false
+  timeout: 240
+
+- name: Traefik развёрнут встроенным Helm-контроллером k3s
+  ansible.builtin.command:
+    cmd: "{{ kubectl_admin }} -n kube-system get deployment traefik"
+  register: traefik_deploy
+  until: traefik_deploy.rc == 0
+  retries: 60
+  delay: 5
+  changed_when: false
+
+- name: Traefik готов
+  ansible.builtin.command:
+    cmd: "{{ kubectl_admin }} -n kube-system rollout status deployment/traefik --timeout=300s"
+  changed_when: false
+  timeout: 360
+
+- name: Шифрование Secret в хранилище k3s
+  ansible.builtin.command:
+    argv: [docker, exec, "k3d-{{ cluster_name }}-server-0", k3s, secrets-encrypt, status]
+  register: secrets_encryption
+  changed_when: false
+  failed_when: "'Encryption Status: Enabled' not in secrets_encryption.stdout"

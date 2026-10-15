@@ -1,0 +1,44 @@
+# Значения слота. slot и image.digest передаёт release controller (scripts/bgctl.py release).
+slot: ""            # blue | green (обязательно)
+
+image:
+  repository: ""   # например localhost:5001/mts-api
+  digest: ""       # sha256:… — развёртывание только по digest
+  pullPolicy: IfNotPresent
+
+release:
+  id: ""
+  version: ""
+  gitSha: ""
+
+replicas: 2
+logLevel: INFO
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 192Mi
+
+# Секрет с SHA-256 действующих API-токенов (создаёт bgctl secrets-apply / rotate-secret).
+auth:
+  existingSecret: api-auth
+  key: token-hashes
+
+# Короткие таймауты демо-профиля: неготовый кандидат обнаруживается за ~1 минуту.
+progressDeadlineSeconds: 60
+terminationGracePeriodSeconds: 20
+preStopSleepSeconds: 5
+
+networkPolicy:
+  enabled: true
+  ingressController:
+    namespace: kube-system
+    podLabels:
+      app.kubernetes.io/name: traefik
+  prometheus:
+    namespace: monitoring
+    podLabels:
+      app.kubernetes.io/name: prometheus

@@ -1,0 +1,5 @@
+# Прямые runtime-зависимости. Полный граф с хешами: requirements.lock
+# (пересборка: make lock; источник — PyPI, отсечка по дате публикации в Makefile).
+fastapi
+uvicorn
+prometheus-client

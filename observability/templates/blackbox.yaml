@@ -1,0 +1,70 @@
+{{- $ctx := dict "name" "blackbox" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackbox-config
+  labels:
+    {{- include "obs.labels" $ctx | nindent 4 }}
+data:
+  blackbox.yml: |
+    {{- .Files.Get "files/blackbox.yml" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackbox
+  labels:
+    {{- include "obs.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: blackbox
+  template:
+    metadata:
+      labels:
+        {{- include "obs.labels" $ctx | nindent 8 }}
+      annotations:
+        checksum/config: {{ .Files.Get "files/blackbox.yml" | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "obs.podSecurity" . | nindent 8 }}
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+        - name: blackbox
+          image: {{ .Values.images.blackbox }}
+          args:
+            - --config.file=/etc/blackbox/blackbox.yml
+          ports:
+            - name: http
+              containerPort: 9115
+          readinessProbe:
+            httpGet: {path: /-/ready, port: http}
+            periodSeconds: 5
+          securityContext:
+            {{- include "obs.containerSecurity" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.blackbox.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/blackbox
+      volumes:
+        - name: config
+          configMap:
+            name: blackbox-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blackbox
+  labels:
+    {{- include "obs.labels" $ctx | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: blackbox
+  ports:
+    - name: http
+      port: 9115
+      targetPort: http

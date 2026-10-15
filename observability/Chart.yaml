@@ -1,0 +1,8 @@
+apiVersion: v2
+name: mts-observability
+description: >-
+  Минимальный стек наблюдаемости стенда: Prometheus (+правила), Alertmanager, Grafana
+  (datasource и дашборд как код), blackbox exporter для синтетической пробы бизнес-метода.
+type: application
+version: 1.0.0
+appVersion: "observability"

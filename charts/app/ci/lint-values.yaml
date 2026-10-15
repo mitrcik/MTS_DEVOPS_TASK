@@ -1,0 +1,9 @@
+# Значения только для helm lint/template в CI (реальные передаёт release controller).
+slot: blue
+image:
+  repository: localhost:5001/mts-api
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+release:
+  id: v1-20261015t000000z
+  version: v1
+  gitSha: 0123456789ab

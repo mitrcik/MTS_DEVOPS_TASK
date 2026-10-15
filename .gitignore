@@ -1,0 +1,21 @@
+# Локальное состояние стенда: ключи, kubeconfig, зашифрованные секреты, кэши, отчёты
+.local/
+.env
+*.kubeconfig
+*.age
+*.key
+*.pem
+id_*
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+
+# Редакторы и ОС
+.idea/
+.vscode/
+.DS_Store

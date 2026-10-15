@@ -1,0 +1,24 @@
+# Сервис конкретного слота: внутренний адрес кандидата/резерва (preview-путь, scrape).
+# Пользовательский трафик сюда не направляется — для него есть mts-api-active (charts/traffic).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "slot.name" . }}
+  labels:
+    {{- include "slot.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "slot.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "slot.name" . }}
+  labels:
+    {{- include "slot.labels" . | nindent 4 }}
+automountServiceAccountToken: false

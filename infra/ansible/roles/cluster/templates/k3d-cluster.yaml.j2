@@ -1,0 +1,60 @@
+# Сгенерировано из infra/ansible/roles/cluster/templates/k3d-cluster.yaml.j2 — не редактировать.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: {{ cluster_name }}
+servers: 1
+agents: 0
+image: {{ k3s_image }}
+kubeAPI:
+  host: "127.0.0.1"
+  hostIP: "{{ bind_address }}"
+  hostPort: "{{ api_port }}"
+# Один узел: балансировщик k3d не нужен, порт ingress пробрасывается прямо на узел
+# (Traefik слушает 80 через ServiceLB) и только на loopback.
+ports:
+  - port: {{ bind_address }}:{{ ingress_port }}:80
+    nodeFilters: ["server:0:direct"]
+registries:
+  create:
+    name: {{ registry_name }}
+    host: "{{ bind_address }}"
+    hostPort: "{{ registry_port }}"
+    image: {{ registry_image }}
+  # localhost:<порт> на хосте и внутри узла — разные адреса; узел ходит в registry
+  # по имени контейнера в общей docker-сети k3d.
+  config: |
+    mirrors:
+      "localhost:{{ registry_port }}":
+        endpoint:
+          - http://{{ registry_name }}:5000
+{% if dockerhub_mirror | length > 0 %}
+      "docker.io":
+        endpoint:
+          - {{ dockerhub_mirror }}
+{% endif %}
+options:
+  k3d:
+    wait: true
+    timeout: "300s"
+    disableLoadbalancer: true
+  k3s:
+    extraArgs:
+      # шифрование Secret в хранилище кластера (kine/sqlite), AES-CBC
+      - arg: --secrets-encryption
+        nodeFilters: ["server:*"]
+      - arg: --disable=metrics-server
+        nodeFilters: ["server:*"]
+{% if cgroup_version == '1' %}
+      # хост с cgroup v1: kubelet >= 1.35 без этого флага не запускается
+      - arg: --kubelet-arg=fail-cgroupv1=false
+        nodeFilters: ["server:*"]
+{% endif %}
+  kubeconfig:
+    updateDefaultKubeconfig: false
+    switchCurrentContext: false
+{% if extra_ca_bundle | length > 0 %}
+volumes:
+  - volume: {{ extra_ca_bundle }}:/etc/ssl/certs/ca-certificates.crt
+    nodeFilters: ["server:*"]
+{% endif %}

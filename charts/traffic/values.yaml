@@ -1,0 +1,6 @@
+# activeSlot всегда передаётся явно release controller'ом (значение по умолчанию
+# не используется: схема требует blue|green), чтобы повторный helm upgrade не мог
+# незаметно вернуть маршрутизацию на слот «по умолчанию».
+activeSlot: ""
+releaseId: ""
+ingressClassName: traefik

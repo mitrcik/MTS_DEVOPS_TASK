@@ -1,0 +1,62 @@
+- name: "{{ tool.name }}: установленная версия"
+  ansible.builtin.command:
+    argv: "{{ [bin_dir + '/' + tool.name] + tool.version_args }}"
+  register: tool_current
+  changed_when: false
+  failed_when: false
+
+- name: "{{ tool.name }} {{ tool.version }}: загрузка и установка"
+  when: tool.version_match not in (tool_current.stdout | default('')) + (tool_current.stderr | default(''))
+  block:
+    - name: "{{ tool.name }}: загрузка (get_url проверяет sha256 до сохранения)"
+      ansible.builtin.get_url:
+        url: "{{ tool.url }}"
+        dest: "{{ downloads_dir }}/{{ tool.url | basename }}"
+        checksum: "sha256:{{ tool.sha256 }}"
+        mode: "0644"
+        timeout: 60
+      # корпоративный TLS-прокси: доверять дополнительному CA-бандлу (EXTRA_CA_BUNDLE)
+      environment: "{{ {'SSL_CERT_FILE': extra_ca_bundle} if extra_ca_bundle | length > 0 else {} }}"
+      register: tool_download
+      retries: 3
+      delay: 5
+      until: tool_download is succeeded
+
+    - name: "{{ tool.name }}: распаковка нужных файлов"
+      when: tool.archive
+      block:
+        - name: "{{ tool.name }}: каталог распаковки"
+          ansible.builtin.file:
+            path: "{{ downloads_dir }}/{{ tool.name }}-{{ tool.version }}"
+            state: directory
+            mode: "0755"
+        - name: "{{ tool.name }}: распаковка"
+          ansible.builtin.unarchive:
+            src: "{{ tool_download.dest }}"
+            dest: "{{ downloads_dir }}/{{ tool.name }}-{{ tool.version }}"
+            remote_src: true
+            include: "{{ tool.members }}"
+        - name: "{{ tool.name }}: установка в .local/bin"
+          ansible.builtin.copy:
+            src: "{{ downloads_dir }}/{{ tool.name }}-{{ tool.version }}/{{ member }}"
+            dest: "{{ bin_dir }}/{{ member | basename }}"
+            remote_src: true
+            mode: "0755"
+          loop: "{{ tool.members }}"
+          loop_control:
+            loop_var: member
+
+    - name: "{{ tool.name }}: установка в .local/bin"
+      when: not tool.archive
+      ansible.builtin.copy:
+        src: "{{ tool_download.dest }}"
+        dest: "{{ bin_dir }}/{{ tool.name }}"
+        remote_src: true
+        mode: "0755"
+
+    - name: "{{ tool.name }}: проверка версии после установки"
+      ansible.builtin.command:
+        argv: "{{ [bin_dir + '/' + tool.name] + tool.version_args }}"
+      register: tool_after
+      changed_when: false
+      failed_when: tool.version_match not in (tool_after.stdout + tool_after.stderr)

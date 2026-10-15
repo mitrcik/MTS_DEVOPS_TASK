@@ -1,0 +1,142 @@
+# Unit-тесты правил Prometheus: promtool test rules observability/tests/rules.test.yml
+# (scripts/ci.sh validate запускает его в закреплённом образе prom/prometheus).
+rule_files:
+  - ../files/rules/mts-api.rules.yml
+
+evaluation_interval: 5s
+
+tests:
+  # Проба неуспешна с 35 с: до истечения for (30 с) — pending, затем firing, после восстановления — нет алерта.
+  - interval: 5s
+    input_series:
+      - series: 'probe_success{job="blackbox-api",instance="http://traefik/api/v1/tariffs"}'
+        values: '1x6 0x12 1x10'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: MtsApiSyntheticProbeFailing
+        exp_alerts: []
+      - eval_time: 50s
+        alertname: MtsApiSyntheticProbeFailing
+        exp_alerts: []
+      - eval_time: 70s
+        alertname: MtsApiSyntheticProbeFailing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: mts-api
+              profile: demo
+              instance: http://traefik/api/v1/tariffs
+            exp_annotations:
+              summary: "Бизнес-метод каталога недоступен через ingress"
+              description: "Синтетическая проба http://traefik/api/v1/tariffs неуспешна дольше 30 с — пользователи получают ошибки."
+              runbook_url: "docs/runbooks.md#mtsapisyntheticprobefailing"
+      - eval_time: 120s
+        alertname: MtsApiSyntheticProbeFailing
+        exp_alerts: []
+
+  # Нет данных пробы вообще — отдельный алерт, а не «здоров».
+  - interval: 5s
+    input_series:
+      - series: 'up{job="prometheus"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 90s
+        alertname: MtsApiSyntheticProbeAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: mts-api
+              profile: demo
+              job: blackbox-api
+            exp_annotations:
+              summary: "Нет данных синтетической пробы"
+              description: "Prometheus не получает probe_success от blackbox exporter — состояние сервиса неизвестно."
+              runbook_url: "docs/runbooks.md#mtsapisyntheticprobeabsent"
+      - eval_time: 90s
+        alertname: MtsApiSyntheticProbeFailing
+        exp_alerts: []
+
+  # 2 rps успешных + с 50-й секунды 1 rps ошибок (доля 33%): pending, затем firing.
+  - interval: 5s
+    input_series:
+      - series: 'http_requests_total{job="mts-api",route="/api/v1/quotes",status="200",slot="green"}'
+        values: '0+10x60'
+      - series: 'http_requests_total{job="mts-api",route="/api/v1/quotes",status="500",slot="green"}'
+        values: '0x10 0+5x50'
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: MtsApiHighErrorRate
+        exp_alerts: []
+      - eval_time: 200s
+        alertname: MtsApiHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: mts-api
+              profile: demo
+            exp_annotations:
+              summary: "Доля ошибок бизнес-запросов выше 5%"
+              description: "За последнюю минуту 33.33% бизнес-запросов завершились 5xx."
+              runbook_url: "docs/runbooks.md#mtsapihigherrorrate"
+
+  # Нулевой трафик (счётчики не растут): 0/0 не должно давать ни ложного алерта, ни «успеха».
+  - interval: 5s
+    input_series:
+      - series: 'http_requests_total{job="mts-api",route="/api/v1/quotes",status="500",slot="blue"}'
+        values: '7x60'
+      - series: 'http_requests_total{job="mts-api",route="/api/v1/quotes",status="200",slot="blue"}'
+        values: '100x60'
+    alert_rule_test:
+      - eval_time: 250s
+        alertname: MtsApiHighErrorRate
+        exp_alerts: []
+    promql_expr_test:
+      - expr: sum(mts_api:business_requests:rate1m)
+        eval_time: 250s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  # Единичная ошибка при малом трафике (< 0.2 rps) не поднимает тревогу.
+  - interval: 5s
+    input_series:
+      - series: 'http_requests_total{job="mts-api",route="/api/v1/tariffs",status="500",slot="blue"}'
+        values: '0x20 1x40'
+      - series: 'http_requests_total{job="mts-api",route="/api/v1/tariffs",status="200",slot="blue"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 200s
+        alertname: MtsApiHighErrorRate
+        exp_alerts: []
+
+  # p95 по histogram: 90% запросов быстрее 0.1 с, 10% — 1 с; p95 попадает в bucket (0.5, 1].
+  - interval: 5s
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="mts-api",route="/api/v1/quotes",le="0.1"}'
+        values: '0+9x60'
+      - series: 'http_request_duration_seconds_bucket{job="mts-api",route="/api/v1/quotes",le="0.5"}'
+        values: '0+9x60'
+      - series: 'http_request_duration_seconds_bucket{job="mts-api",route="/api/v1/quotes",le="1"}'
+        values: '0+10x60'
+      - series: 'http_request_duration_seconds_bucket{job="mts-api",route="/api/v1/quotes",le="+Inf"}'
+        values: '0+10x60'
+      - series: 'http_requests_total{job="mts-api",route="/api/v1/quotes",status="200",slot="blue"}'
+        values: '0+10x60'
+    promql_expr_test:
+      - expr: mts_api:latency_p95_seconds:1m
+        eval_time: 200s
+        exp_samples:
+          - labels: 'mts_api:latency_p95_seconds:1m'
+            value: 0.75
+    alert_rule_test:
+      - eval_time: 250s
+        alertname: MtsApiHighLatencyP95
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: mts-api
+              profile: demo
+            exp_annotations:
+              summary: "p95 задержки бизнес-запросов выше 500 мс"
+              description: "p95 = 750ms дольше 2 минут."
+              runbook_url: "docs/runbooks.md#mtsapihighlatencyp95"

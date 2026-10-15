@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["slot", "image", "release"],
+  "properties": {
+    "slot": {"type": "string", "enum": ["blue", "green"]},
+    "image": {
+      "type": "object",
+      "required": ["repository", "digest"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._/:-]*[a-z0-9]$"},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "pullPolicy": {"type": "string", "enum": ["IfNotPresent", "Always"]}
+      }
+    },
+    "release": {
+      "type": "object",
+      "required": ["id", "version", "gitSha"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,62}$"},
+        "version": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,40}$"},
+        "gitSha": {"type": "string", "pattern": "^[0-9a-f]{7,40}(-dirty)?$"}
+      }
+    },
+    "replicas": {"type": "integer", "minimum": 1, "maximum": 10},
+    "logLevel": {"type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR"]}
+  }
+}

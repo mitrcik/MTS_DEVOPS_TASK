@@ -1,0 +1,8 @@
+apiVersion: v2
+name: mts-api-traffic
+description: >-
+  Единственный владелец пользовательской маршрутизации: стабильный Service mts-api-active
+  и Ingress. Переключение blue-green = смена activeSlot этим релизом (и только им).
+type: application
+version: 1.0.0
+appVersion: "traffic"

@@ -1,0 +1,25 @@
+extends: default
+
+ignore: |
+  .local/
+  .git/
+  charts/*/templates/
+  observability/templates/
+  infra/ansible/roles/cluster/templates/
+
+rules:
+  line-length:
+    max: 160
+  document-start: disable
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false
+  braces:
+    max-spaces-inside: 1
+  brackets:
+    max-spaces-inside: 1
+  indentation:
+    indent-sequences: consistent

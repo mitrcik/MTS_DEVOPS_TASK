@@ -1,0 +1,6 @@
+# Инструменты хоста в .local/venv: оркестрация (Ansible) и линтеры.
+# Полный граф с хешами: requirements.lock (make lock). PyYAML приходит транзитивно от ansible-core
+# и используется скриптами scripts/.
+ansible-core
+yamllint
+ruff

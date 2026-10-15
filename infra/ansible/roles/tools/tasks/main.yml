@@ -1,0 +1,20 @@
+- name: Список закреплённых инструментов (URL, версия, sha256)
+  ansible.builtin.include_vars:
+    file: "{{ project_dir }}/infra/tools/tools.yml"
+    name: tools_lock
+
+- name: Каталоги инструментов
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ bin_dir }}"
+    - "{{ downloads_dir }}"
+
+- name: Установка инструментов с проверкой контрольной суммы
+  ansible.builtin.include_tasks: install.yml
+  loop: "{{ tools_lock.tools }}"
+  loop_control:
+    loop_var: tool
+    label: "{{ tool.name }} {{ tool.version }}"

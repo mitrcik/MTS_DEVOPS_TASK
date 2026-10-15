@@ -1,0 +1,46 @@
+# Образы задаются из versions.env (Ansible передаёт их через --set); здесь те же значения
+# по умолчанию для helm lint/template.
+images:
+  prometheus: docker.io/prom/prometheus:v3.13.4
+  alertmanager: docker.io/prom/alertmanager:v0.34.1
+  grafana: docker.io/grafana/grafana:13.2.3
+  blackbox: docker.io/prom/blackbox-exporter:v0.28.0
+
+# Внешний адрес UI на loopback (для ссылок в UI и алертах).
+ingressPort: 8080
+hosts:
+  prometheus: prometheus.localhost
+  alertmanager: alertmanager.localhost
+  grafana: grafana.localhost
+
+appNamespace: mts-app
+standName: mts-devops
+
+prometheus:
+  retentionTime: 2d
+  retentionSize: 1GB
+  storageSize: 2Gi
+  # демо-профиль: быстрый scrape приложения и пробы, чтобы gate и алерты реагировали за секунды
+  appScrapeInterval: 5s
+  evaluationInterval: 5s
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 768Mi}
+
+alertmanager:
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {cpu: 200m, memory: 128Mi}
+
+grafana:
+  adminSecret: grafana-admin
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 384Mi}
+
+blackbox:
+  # проба идёт через Service Traefik — тот же путь, что у пользователя
+  target: http://traefik.kube-system.svc.cluster.local/api/v1/tariffs
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {cpu: 100m, memory: 64Mi}

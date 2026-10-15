@@ -1,0 +1,146 @@
+# CI/CD конвейер. Логика стадий — в scripts/ci.sh и scripts/bgctl.py (те же, что локально).
+#
+#   push (любая ветка) : checks → image (build, Trivy, публикация в GHCR) и e2e (одноразовый k3d в runner)
+#   pull_request       : checks → image (build, Trivy; без публикации и без секретов) и e2e
+#   push в main        : + deploy на постоянный стенд по SSH, если настроены vars/secrets (docs/remote-cd.md)
+#
+# e2e — интеграционная проверка на одноразовом кластере в runner, НЕ доставка в production.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    name: lint · unit-тесты · проверка конфигурации
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Закреплённые инструменты (sha256)
+        run: make tools
+      - name: lint, test, validate
+        run: scripts/ci.sh lint test validate
+
+  image:
+    name: сборка · Trivy · публикация
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write  # используется только при push; в PR публикации нет
+    outputs:
+      image: ${{ steps.publish.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Закреплённые инструменты (sha256)
+        run: make tools
+      - name: Сборка и сканирование (тот же образ потом публикуется)
+        run: |
+          export REGISTRY="ghcr.io/${GITHUB_REPOSITORY,,}" VERSION="gh${GITHUB_RUN_NUMBER}"
+          scripts/ci.sh build scan
+      - name: Публикация в GHCR и digest
+        id: publish
+        if: github.event_name == 'push'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_REQUIRED_JOBS: checks
+        run: |
+          export REGISTRY="ghcr.io/${GITHUB_REPOSITORY,,}" VERSION="gh${GITHUB_RUN_NUMBER}"
+          printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          prov="$(scripts/ci.sh push | tail -1)"
+          cp "${prov}" provenance.json
+          echo "image=$(python3 -c 'import json;print(json.load(open("provenance.json"))["image"]["ref"])')" >> "${GITHUB_OUTPUT}"
+          docker logout ghcr.io
+      - name: Отчёты сборки и сканирования
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: image-reports
+          path: |
+            .local/artifacts/*/trivy.txt
+            .local/artifacts/*/trivy-summary.json
+            .local/artifacts/*/provenance.json
+            provenance.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  e2e:
+    name: E2E на одноразовом k3d (runner)
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: make doctor
+        run: make doctor
+      - name: make up (чистый запуск по README)
+        run: make up
+      - name: Приёмочные сценарии
+        run: make test-e2e
+      - name: Отчёты релизов и сценариев
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: e2e-reports
+          path: |
+            .local/reports/
+            .local/e2e/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: make down
+        if: always()
+        run: make down
+
+  deploy:
+    name: CD → постоянный стенд (SSH)
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    # релизы на один стенд строго по очереди; начатое переключение не прерывается новым коммитом
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: image-reports
+      - name: Доставка ровно того digest, что собран и проверен в этом workflow
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          EXPECTED_IMAGE: ${{ needs.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          test "$(python3 -c 'import json;print(json.load(open("provenance.json"))["image"]["ref"])')" = "${EXPECTED_IMAGE}"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+              "${DEPLOY_USER:-deploy}@${DEPLOY_HOST}" release < provenance.json

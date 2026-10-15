@@ -1,0 +1,30 @@
+# Значения приходят из versions.env и .env через окружение (Makefile экспортирует их).
+project_dir: "{{ (playbook_dir + '/../..') | realpath }}"
+local_dir: "{{ project_dir }}/.local"
+bin_dir: "{{ local_dir }}/bin"
+downloads_dir: "{{ local_dir }}/downloads"
+venv_python: "{{ local_dir }}/venv/bin/python"
+bgctl: "{{ venv_python }} {{ project_dir }}/scripts/bgctl.py"
+admin_kubeconfig: "{{ local_dir }}/kube/admin.kubeconfig"
+
+cluster_name: "{{ lookup('env', 'CLUSTER_NAME') | default('mts-devops', true) }}"
+registry_name: "{{ cluster_name }}-registry"
+bind_address: "{{ lookup('env', 'BIND_ADDRESS') | default('127.0.0.1', true) }}"
+ingress_port: "{{ lookup('env', 'INGRESS_PORT') | default('8080', true) }}"
+api_port: "{{ lookup('env', 'API_PORT') | default('6550', true) }}"
+registry_port: "{{ lookup('env', 'REGISTRY_PORT') | default('5001', true) }}"
+initial_version: "{{ lookup('env', 'INITIAL_VERSION') | default('v1', true) }}"
+
+k3s_image: "{{ lookup('env', 'K3S_IMAGE') }}"
+registry_image: "{{ lookup('env', 'REGISTRY_IMAGE') }}"
+prometheus_image: "{{ lookup('env', 'PROMETHEUS_IMAGE') }}"
+alertmanager_image: "{{ lookup('env', 'ALERTMANAGER_IMAGE') }}"
+grafana_image: "{{ lookup('env', 'GRAFANA_IMAGE') }}"
+blackbox_image: "{{ lookup('env', 'BLACKBOX_IMAGE') }}"
+
+dockerhub_mirror: "{{ lookup('env', 'DOCKERHUB_MIRROR') }}"
+extra_ca_bundle: "{{ lookup('env', 'EXTRA_CA_BUNDLE') }}"
+k3d_extra_args: "{{ lookup('env', 'K3D_EXTRA_ARGS') }}"
+
+kubectl_admin: "{{ bin_dir }}/kubectl --kubeconfig {{ admin_kubeconfig }}"
+helm_admin: "{{ bin_dir }}/helm --kubeconfig {{ admin_kubeconfig }}"

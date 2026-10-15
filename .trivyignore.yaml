@@ -1,0 +1,11 @@
+# Адресные исключения политики Trivy (scripts/ci.sh scan).
+# Каждое исключение обязано иметь обоснование (statement) и срок пересмотра (expired_at,
+# не более 90 дней) — это проверяет scripts/cihelper.py check-trivyignore в стадии validate.
+# Пример:
+# vulnerabilities:
+#   - id: CVE-2026-00000
+#     paths: ["usr/lib/x86_64-linux-gnu/libexample.so.1"]
+#     statement: "Код библиотеки не используется сервисом; исправление ожидается в следующем образе Debian"
+#     expired_at: 2026-12-01
+vulnerabilities: []
+secrets: []

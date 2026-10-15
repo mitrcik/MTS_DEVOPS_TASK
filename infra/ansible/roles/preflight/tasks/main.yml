@@ -1,0 +1,26 @@
+- name: Обязательные переменные из versions.env загружены
+  ansible.builtin.assert:
+    that:
+      - k3s_image | length > 0
+      - registry_image | length > 0
+      - prometheus_image | length > 0
+      - grafana_image | length > 0
+    fail_msg: "versions.env не загружен: запускайте через make up"
+    quiet: true
+
+- name: Диагностика хоста (scripts/doctor.sh)
+  ansible.builtin.command:
+    cmd: "{{ project_dir }}/scripts/doctor.sh --quiet"
+  changed_when: false
+
+- name: Локальный каталог состояния (.local, игнорируется Git)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ local_dir }}"
+    - "{{ local_dir }}/kube"
+    - "{{ local_dir }}/k3d"
+    - "{{ local_dir }}/reports"
+    - "{{ local_dir }}/artifacts"

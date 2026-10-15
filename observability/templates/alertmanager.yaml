@@ -1,0 +1,82 @@
+{{- $ctx := dict "name" "alertmanager" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  labels:
+    {{- include "obs.labels" $ctx | nindent 4 }}
+data:
+  alertmanager.yml: |
+    {{- .Files.Get "files/alertmanager.yml" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  labels:
+    {{- include "obs.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  template:
+    metadata:
+      labels:
+        {{- include "obs.labels" $ctx | nindent 8 }}
+      annotations:
+        checksum/config: {{ .Files.Get "files/alertmanager.yml" | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "obs.podSecurity" . | nindent 8 }}
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+        - name: alertmanager
+          image: {{ .Values.images.alertmanager }}
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+            - --cluster.listen-address=
+            - --web.external-url=http://{{ .Values.hosts.alertmanager }}:{{ .Values.ingressPort }}/
+            - --web.route-prefix=/
+          ports:
+            - name: http
+              containerPort: 9093
+          readinessProbe:
+            httpGet: {path: /-/ready, port: http}
+            periodSeconds: 5
+          securityContext:
+            {{- include "obs.containerSecurity" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.alertmanager.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: data
+              mountPath: /alertmanager
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: data
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  labels:
+    {{- include "obs.labels" $ctx | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: alertmanager
+  ports:
+    - name: http
+      port: 9093
+      targetPort: http
+---
+{{ include "obs.ingress" (dict "name" "alertmanager" "host" .Values.hosts.alertmanager "port" 9093) }}

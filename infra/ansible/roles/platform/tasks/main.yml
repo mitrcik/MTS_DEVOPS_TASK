@@ -1,0 +1,18 @@
+- name: Namespace, Pod Security Admission, default-deny и RBAC релизов (charts/platform)
+  ansible.builtin.command:
+    cmd: >-
+      {{ helm_admin }} upgrade --install mts-platform {{ project_dir }}/charts/platform
+      --namespace kube-system --wait --timeout 120s --history-max 5
+  register: platform_helm
+  changed_when: "'has been upgraded' in platform_helm.stdout or 'STATUS: deployed' in platform_helm.stdout"
+  timeout: 240
+
+- name: Ограниченный kubeconfig релизной учётной записи (TokenRequest)
+  ansible.builtin.command:
+    cmd: "{{ bgctl }} deploy-credentials"
+  changed_when: true
+
+- name: Секреты в кластер (расшифровка SOPS в память, server-side apply)
+  ansible.builtin.command:
+    cmd: "{{ bgctl }} secrets-apply --grafana"
+  changed_when: false

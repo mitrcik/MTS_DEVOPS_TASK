@@ -1,0 +1,57 @@
+# Закреплённые CLI-инструменты для linux/amd64. Ставятся в .local/bin ролью
+# infra/ansible/roles/tools (ansible.builtin.get_url проверяет sha256 до установки).
+#
+# Источник sha256 — файлы контрольных сумм, опубликованные проектами:
+#   kubectl: https://dl.k8s.io/release/<v>/bin/linux/amd64/kubectl.sha256
+#   helm:    https://get.helm.sh/<file>.sha256sum (продублирована в release notes на GitHub)
+#   k3d:     checksums.txt релиза на GitHub
+#   sops:    sops-<v>.checksums.txt релиза на GitHub
+#   trivy:   trivy_<v>_checksums.txt релиза на GitHub
+#   age:     проект не публикует файл checksum (только Sigsum-proof); хеш зафиксирован
+#            при закреплении версии после загрузки с GitHub Releases.
+tools:
+  - name: kubectl
+    version: "1.36.5"
+    url: https://dl.k8s.io/release/v1.36.5/bin/linux/amd64/kubectl
+    sha256: 33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e
+    archive: false
+    version_args: ["version", "--client"]
+    version_match: "v1.36.5"
+  - name: helm
+    version: "4.3.0"
+    url: https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
+    sha256: 86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb
+    archive: true
+    members: ["linux-amd64/helm"]
+    version_args: ["version", "--short"]
+    version_match: "v4.3.0"
+  - name: k3d
+    version: "5.9.0"
+    url: https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64
+    sha256: 06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0
+    archive: false
+    version_args: ["version"]
+    version_match: "k3d version v5.9.0"
+  - name: sops
+    version: "3.13.1"
+    url: https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.linux.amd64
+    sha256: 620a9d7e3352ababeca6908cea24a6e8b14ce89a448ddbd3f94f1ef3398f470a
+    archive: false
+    version_args: ["--version", "--disable-version-check"]
+    version_match: "sops 3.13.1"
+  - name: trivy
+    version: "0.75.0"
+    url: https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz
+    sha256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+    archive: true
+    members: ["trivy"]
+    version_args: ["--version"]
+    version_match: "Version: 0.75.0"
+  - name: age
+    version: "1.3.1"
+    url: https://github.com/FiloSottile/age/releases/download/v1.3.1/age-v1.3.1-linux-amd64.tar.gz
+    sha256: bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377
+    archive: true
+    members: ["age/age", "age/age-keygen"]
+    version_args: ["--version"]
+    version_match: "v1.3.1"

@@ -1,0 +1,25 @@
+# Маршрутизация алертов. В демо-профиле получатели локальные (без внешних интеграций):
+# алерты видны в UI/API Alertmanager (http://alertmanager.localhost:8080) с именем получателя.
+# Для постоянного стенда в получатель добавляется интеграция (email_configs, webhook_configs,
+# telegram_configs) — см. docs/runbooks.md.
+route:
+  receiver: team-default
+  group_by: [alertname, service]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 4h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: team-oncall-critical
+      group_wait: 5s
+      repeat_interval: 1h
+
+receivers:
+  - name: team-default
+  - name: team-oncall-critical
+
+inhibit_rules:
+  # Если бизнес-метод недоступен целиком, отдельный алерт про долю ошибок избыточен.
+  - source_matchers: ['alertname="MtsApiSyntheticProbeFailing"']
+    target_matchers: ['alertname="MtsApiHighErrorRate"']
+    equal: [service]

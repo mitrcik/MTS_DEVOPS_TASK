@@ -1,0 +1,6 @@
+# make tools: только закреплённые CLI-инструменты (нужны и для make ci без стенда).
+- name: Закреплённые инструменты в .local/bin
+  hosts: all
+  gather_facts: false
+  roles:
+    - role: tools

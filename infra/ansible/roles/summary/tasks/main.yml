@@ -1,0 +1,17 @@
+- name: Состояние слотов
+  ansible.builtin.command:
+    cmd: "{{ bgctl }} status"
+  register: stand_status
+  changed_when: false
+
+- name: Итог
+  ansible.builtin.debug:
+    msg:
+      - "Стенд готов. Все адреса — только loopback."
+      - "API (пользовательский путь):  http://{{ bind_address }}:{{ ingress_port }}/api/v1/tariffs   (/version, /docs)"
+      - "Grafana:                      http://grafana.localhost:{{ ingress_port }}   (логин admin; пароль: make credentials)"
+      - "Prometheus:                   http://prometheus.localhost:{{ ingress_port }}"
+      - "Alertmanager:                 http://alertmanager.localhost:{{ ingress_port }}"
+      - "Если *.localhost не резолвится: curl -H 'Host: grafana.localhost' http://{{ bind_address }}:{{ ingress_port }}/"
+      - "Дальше: make verify | make release VERSION=v2 | make demo-failure | make rotate-secret | make status"
+      - "{{ stand_status.stdout_lines }}"

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: mts-platform
+description: >-
+  Bootstrap с правами администратора: namespace с Pod Security Admission, default-deny
+  NetworkPolicy и ограниченная учётная запись release-controller для релизов.
+type: application
+version: 1.0.0
+appVersion: "platform"

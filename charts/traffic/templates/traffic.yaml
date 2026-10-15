@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mts-api-active
+  labels:
+    app.kubernetes.io/name: mts-api
+    app.kubernetes.io/component: traffic
+    app.kubernetes.io/part-of: mts-devops
+  annotations:
+    mts-devops/active-slot: {{ .Values.activeSlot | quote }}
+    mts-devops/switched-by-release: {{ .Values.releaseId | quote }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mts-api
+    slot: {{ .Values.activeSlot }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Пользовательский путь: любой Host на порту ingress (loopback). Более специфичные
+# правила (grafana.localhost и т.п.) Traefik выбирает по приоритету длины правила.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mts-api
+  labels:
+    app.kubernetes.io/name: mts-api
+    app.kubernetes.io/component: traffic
+    app.kubernetes.io/part-of: mts-devops
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mts-api-active
+                port:
+                  name: http

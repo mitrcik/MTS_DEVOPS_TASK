@@ -1,0 +1,11 @@
+modules:
+  http_business:
+    prober: http
+    timeout: 3s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      preferred_ip_protocol: ip4
+      # ответ должен быть содержательным, а не просто 200
+      fail_if_body_not_matches_regexp:
+        - '"count":\s*[1-9]'

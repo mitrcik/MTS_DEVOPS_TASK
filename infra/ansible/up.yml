@@ -1,0 +1,22 @@
+# make up: подготовка и запуск основного стенда. Идемпотентен: повторный запуск не
+# пересоздаёт ключи, секреты и кластер и не трогает рабочую версию, если она актуальна.
+- name: MTS DevOps — стенд доставки (Ubuntu + Docker + k3d/k3s)
+  hosts: all
+  gather_facts: false
+  roles:
+    - role: preflight
+      tags: [preflight]
+    - role: tools
+      tags: [tools]
+    - role: secrets
+      tags: [secrets]
+    - role: cluster
+      tags: [cluster]
+    - role: platform
+      tags: [platform]
+    - role: observability
+      tags: [observability]
+    - role: app
+      tags: [app]
+    - role: summary
+      tags: [summary]

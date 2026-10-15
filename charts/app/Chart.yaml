@@ -1,0 +1,8 @@
+apiVersion: v2
+name: mts-api-slot
+description: >-
+  Один blue-green слот демо-API (Deployment, Service, ServiceAccount, NetworkPolicy).
+  Слот не владеет пользовательской маршрутизацией — ею владеет чарт charts/traffic.
+type: application
+version: 1.0.0
+appVersion: "slot"

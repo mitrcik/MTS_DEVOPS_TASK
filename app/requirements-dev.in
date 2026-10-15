@@ -1,0 +1,4 @@
+# Зависимости тестового слоя образа (target "test"). Полный граф: requirements-dev.lock
+-c requirements.lock
+pytest
+httpx

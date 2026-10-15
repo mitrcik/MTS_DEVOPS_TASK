@@ -1,0 +1,38 @@
+- name: Prometheus, Alertmanager, Grafana, blackbox (observability/)
+  ansible.builtin.command:
+    argv:
+      - "{{ bin_dir }}/helm"
+      - --kubeconfig
+      - "{{ admin_kubeconfig }}"
+      - upgrade
+      - --install
+      - mts-observability
+      - "{{ project_dir }}/observability"
+      - --namespace
+      - monitoring
+      - --wait
+      - --timeout
+      - 600s
+      - --history-max
+      - "5"
+      - --set-string
+      - "images.prometheus={{ prometheus_image }}"
+      - --set-string
+      - "images.alertmanager={{ alertmanager_image }}"
+      - --set-string
+      - "images.grafana={{ grafana_image }}"
+      - --set-string
+      - "images.blackbox={{ blackbox_image }}"
+      - --set
+      - "ingressPort={{ ingress_port }}"
+      - --set-string
+      - "standName={{ cluster_name }}"
+  register: obs_helm
+  changed_when: true
+  timeout: 720
+
+- name: UI наблюдаемости отвечают через ingress
+  ansible.builtin.command:
+    cmd: "{{ bgctl }} wait-observability --timeout 300"
+  changed_when: false
+  timeout: 360

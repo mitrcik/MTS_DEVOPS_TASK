@@ -1,0 +1,91 @@
+# Правила записи (SLI) и алерты здоровья сервиса. Профиль: demo — короткие окна и for,
+# чтобы сбой и восстановление были видны за минуты. Для постоянного стенда см.
+# docs/runbooks.md («Параметры для постоянного стенда»): окна 5m/30m и for 2–5m.
+# Проверка: promtool check rules + promtool test rules (observability/tests/rules.test.yml).
+groups:
+  - name: mts-api-sli
+    interval: 5s
+    rules:
+      - record: mts_api:business_requests:rate1m
+        expr: sum by (slot) (rate(http_requests_total{job="mts-api",route=~"/api/v1/.*"}[1m]))
+      - record: mts_api:business_errors:rate1m
+        expr: sum by (slot) (rate(http_requests_total{job="mts-api",route=~"/api/v1/.*",status=~"5.."}[1m]))
+      - record: mts_api:latency_p95_seconds:1m
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="mts-api",route=~"/api/v1/.*"}[1m])))
+      - record: mts_api:probe_success:avg5m
+        expr: avg_over_time(probe_success{job="blackbox-api"}[5m])
+
+  - name: mts-api-alerts
+    interval: 5s
+    rules:
+      # Главный алерт здоровья: бизнес-метод недоступен на пользовательском пути (через ingress).
+      # Работает и тогда, когда метрик приложения нет совсем (pod не существуют).
+      - alert: MtsApiSyntheticProbeFailing
+        expr: max by (instance) (probe_success{job="blackbox-api"}) == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: mts-api
+          profile: demo
+        annotations:
+          summary: "Бизнес-метод каталога недоступен через ingress"
+          description: "Синтетическая проба {{ $labels.instance }} неуспешна дольше 30 с — пользователи получают ошибки."
+          runbook_url: "docs/runbooks.md#mtsapisyntheticprobefailing"
+
+      # Отсутствие данных пробы — тоже проблема наблюдаемости, а не «всё хорошо».
+      - alert: MtsApiSyntheticProbeAbsent
+        expr: absent(probe_success{job="blackbox-api"})
+        for: 1m
+        labels:
+          severity: warning
+          service: mts-api
+          profile: demo
+        annotations:
+          summary: "Нет данных синтетической пробы"
+          description: "Prometheus не получает probe_success от blackbox exporter — состояние сервиса неизвестно."
+          runbook_url: "docs/runbooks.md#mtsapisyntheticprobeabsent"
+
+      # Доля 5xx бизнес-запросов при наличии минимального трафика (нулевой трафик не даёт ложных 0/0).
+      - alert: MtsApiHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="mts-api",route=~"/api/v1/.*",status=~"5.."}[1m]))
+            /
+            sum(rate(http_requests_total{job="mts-api",route=~"/api/v1/.*"}[1m]))
+          ) > 0.05
+          and on() sum(rate(http_requests_total{job="mts-api",route=~"/api/v1/.*"}[1m])) > 0.2
+        for: 30s
+        labels:
+          severity: critical
+          service: mts-api
+          profile: demo
+        annotations:
+          summary: "Доля ошибок бизнес-запросов выше 5%"
+          description: "За последнюю минуту {{ $value | humanizePercentage }} бизнес-запросов завершились 5xx."
+          runbook_url: "docs/runbooks.md#mtsapihigherrorrate"
+
+      - alert: MtsApiHighLatencyP95
+        expr: |
+          mts_api:latency_p95_seconds:1m > 0.5
+          and on() sum(mts_api:business_requests:rate1m) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+          service: mts-api
+          profile: demo
+        annotations:
+          summary: "p95 задержки бизнес-запросов выше 500 мс"
+          description: "p95 = {{ $value | humanizeDuration }} дольше 2 минут."
+          runbook_url: "docs/runbooks.md#mtsapihighlatencyp95"
+
+      - alert: MtsApiTargetDown
+        expr: up{job="mts-api"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          service: mts-api
+          profile: demo
+        annotations:
+          summary: "Prometheus не может снять метрики pod {{ $labels.pod }}"
+          description: "Экземпляр слота {{ $labels.slot }} не отвечает на /metrics дольше минуты."
+          runbook_url: "docs/runbooks.md#mtsapitargetdown"
