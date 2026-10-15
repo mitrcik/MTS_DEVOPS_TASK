@@ -99,7 +99,8 @@ cur_watch="$(cat /proc/sys/fs/inotify/max_user_watches)"
 if (( cur_inst < 512 || cur_watch < 524288 )); then
   printf 'fs.inotify.max_user_instances = %s\nfs.inotify.max_user_watches = %s\n' \
     "$(( cur_inst > 512 ? cur_inst : 512 ))" "$(( cur_watch > 524288 ? cur_watch : 524288 ))" > "${conf}"
-  if sysctl -q -p "${conf}" 2>/dev/null; then
+  sysctl -q -p "${conf}" >/dev/null 2>&1 || true
+  if (( $(cat /proc/sys/fs/inotify/max_user_instances) >= 512 )); then
     ok "лимиты inotify увеличены (${conf})"
   else
     warn "лимиты inotify записаны в ${conf}, но не применены сейчас (контейнер?) — применятся после перезагрузки"

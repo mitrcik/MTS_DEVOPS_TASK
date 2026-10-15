@@ -21,11 +21,11 @@ tools:
     platforms:
       amd64:
         url: https://dl.k8s.io/release/v1.36.5/bin/linux/amd64/kubectl
-        sha256: 33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e
+        sha256: "33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e"
         checksum_url: https://dl.k8s.io/release/v1.36.5/bin/linux/amd64/kubectl.sha256
       arm64:
         url: https://dl.k8s.io/release/v1.36.5/bin/linux/arm64/kubectl
-        sha256: 88fc1aca8fd0c1b44fe379f67c39bd6858bdfc50241dc55775f84d0f5b31da3a
+        sha256: "88fc1aca8fd0c1b44fe379f67c39bd6858bdfc50241dc55775f84d0f5b31da3a"
         checksum_url: https://dl.k8s.io/release/v1.36.5/bin/linux/arm64/kubectl.sha256
   - name: helm
     version: "4.3.0"
@@ -35,12 +35,12 @@ tools:
     platforms:
       amd64:
         url: https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
-        sha256: 86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb
+        sha256: "86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb"
         checksum_url: https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz.sha256sum
         members: ["linux-amd64/helm"]
       arm64:
         url: https://get.helm.sh/helm-v4.3.0-linux-arm64.tar.gz
-        sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        sha256: "0000000000000000000000000000000000000000000000000000000000000000"
         checksum_url: https://get.helm.sh/helm-v4.3.0-linux-arm64.tar.gz.sha256sum
         members: ["linux-arm64/helm"]
   - name: k3d
@@ -51,11 +51,11 @@ tools:
     platforms:
       amd64:
         url: https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64
-        sha256: 06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0
+        sha256: "06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0"
         checksum_url: https://github.com/k3d-io/k3d/releases/download/v5.9.0/checksums.txt
       arm64:
         url: https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-arm64
-        sha256: 03cde5cf23e6e8e67de5a039ecf26e5b85aca82fba3e5d13dadf904cd218a250
+        sha256: "03cde5cf23e6e8e67de5a039ecf26e5b85aca82fba3e5d13dadf904cd218a250"
         checksum_url: https://github.com/k3d-io/k3d/releases/download/v5.9.0/checksums.txt
   - name: sops
     version: "3.13.1"
@@ -65,11 +65,11 @@ tools:
     platforms:
       amd64:
         url: https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.linux.amd64
-        sha256: 620a9d7e3352ababeca6908cea24a6e8b14ce89a448ddbd3f94f1ef3398f470a
+        sha256: "620a9d7e3352ababeca6908cea24a6e8b14ce89a448ddbd3f94f1ef3398f470a"
         checksum_url: https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.checksums.txt
       arm64:
         url: https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.linux.arm64
-        sha256: 19576fb1734dbf8fb77eda0cf0f3a2218f99bf4d33b814318e5e10d6babb9820
+        sha256: "19576fb1734dbf8fb77eda0cf0f3a2218f99bf4d33b814318e5e10d6babb9820"
         checksum_url: https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.checksums.txt
   - name: trivy
     version: "0.75.0"
@@ -79,12 +79,12 @@ tools:
     platforms:
       amd64:
         url: https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz
-        sha256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+        sha256: "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f"
         checksum_url: https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_checksums.txt
         members: ["trivy"]
       arm64:
         url: https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-ARM64.tar.gz
-        sha256: a1ee9f6ffb7d112b64ff726a2a0717c21175c1114361391f4a132956751a13b3
+        sha256: "a1ee9f6ffb7d112b64ff726a2a0717c21175c1114361391f4a132956751a13b3"
         checksum_url: https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_checksums.txt
         members: ["trivy"]
   - name: age
@@ -95,9 +95,9 @@ tools:
     platforms:
       amd64:
         url: https://github.com/FiloSottile/age/releases/download/v1.3.1/age-v1.3.1-linux-amd64.tar.gz
-        sha256: bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377
+        sha256: "bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377"
         members: ["age/age", "age/age-keygen"]
       arm64:
         url: https://github.com/FiloSottile/age/releases/download/v1.3.1/age-v1.3.1-linux-arm64.tar.gz
-        sha256: c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a
+        sha256: "c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a"
         members: ["age/age", "age/age-keygen"]

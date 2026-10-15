@@ -107,6 +107,7 @@ stage_validate() {
     check-config /w/alertmanager.yml
   "${HELPER[@]}" check-dashboards "${ROOT_DIR}/observability/files/dashboards"
   "${HELPER[@]}" check-trivyignore "${ROOT_DIR}/.trivyignore.yaml"
+  "${HELPER[@]}" check-tools-file "${ROOT_DIR}/infra/tools/tools.yml"
   stage_end
 }
 

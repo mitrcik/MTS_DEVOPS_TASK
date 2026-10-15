@@ -221,6 +221,26 @@ def cmd_check_tracked_files(root: str) -> int:
     return 1 if errors else 0
 
 
+def cmd_check_tools_file(path: str) -> int:
+    """Структура tools.yml без сети: обе архитектуры, https-URL, sha256 — строка из 64 hex."""
+    errors = []
+    for tool in yaml.safe_load(Path(path).read_text(encoding="utf-8"))["tools"]:
+        platforms = tool.get("platforms") or {}
+        if set(platforms) != {"amd64", "arm64"}:
+            errors.append(f"{tool.get('name')}: нужны платформы amd64 и arm64, есть {sorted(platforms)}")
+        for arch, pkg in platforms.items():
+            label = f"{tool.get('name')} {arch}"
+            if not str(pkg.get("url", "")).startswith("https://"):
+                errors.append(f"{label}: url должен быть https")
+            if not isinstance(pkg.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", pkg["sha256"]):
+                errors.append(f"{label}: sha256 — строка из 64 hex-символов в кавычках")
+            if tool.get("archive") and not pkg.get("members"):
+                errors.append(f"{label}: для архива нужен список members")
+    for e in errors:
+        print(f"infra/tools/tools.yml: {e}", file=sys.stderr)
+    return 1 if errors else 0
+
+
 def _official_sha256(checksum_url: str, artifact_url: str) -> str:
     """sha256 артефакта из опубликованного файла: одиночный хеш или строки «<хеш>  <имя>»."""
     import urllib.request
@@ -252,7 +272,7 @@ def cmd_check_tool_pins(path: str) -> int:
                 print(f"[FAIL] {label}: не удалось получить checksum: {exc}", file=sys.stderr)
                 errors += 1
                 continue
-            if official == pkg["sha256"].lower():
+            if official == str(pkg["sha256"]).lower():
                 print(f"[ OK ] {label}: {official}", file=sys.stderr)
             else:
                 print(f"[FAIL] {label}: закреплено {pkg['sha256']}, официально {official}", file=sys.stderr)
