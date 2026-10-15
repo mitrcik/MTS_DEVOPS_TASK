@@ -1,0 +1,327 @@
+{
+  "kind": "release",
+  "id": "v3-faulty-20261015t225054z",
+  "decision": "rolled_back",
+  "reason": "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах",
+  "started_at": "2026-10-15T22:50:54.331Z",
+  "finished_at": "2026-10-15T22:51:26.607Z",
+  "timeline": [
+    {
+      "at": "2026-10-15T22:50:54.929Z",
+      "event": "deploy_started",
+      "slot": "blue"
+    },
+    {
+      "at": "2026-10-15T22:51:02.991Z",
+      "event": "candidate_ready"
+    },
+    {
+      "at": "2026-10-15T22:51:03.802Z",
+      "event": "preview_passed",
+      "probes": 16
+    },
+    {
+      "at": "2026-10-15T22:51:09.902Z",
+      "event": "metrics_precheck_passed"
+    },
+    {
+      "at": "2026-10-15T22:51:12.481Z",
+      "event": "traffic_switched",
+      "to": "blue",
+      "previous": "green"
+    },
+    {
+      "at": "2026-10-15T22:51:13.108Z",
+      "event": "cutover_observed",
+      "seconds_after_switch": 0.51
+    },
+    {
+      "at": "2026-10-15T22:51:15.108Z",
+      "event": "fail_fast",
+      "reason": "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах"
+    },
+    {
+      "at": "2026-10-15T22:51:15.723Z",
+      "event": "traffic_rolled_back",
+      "to": "green"
+    },
+    {
+      "at": "2026-10-15T22:51:16.223Z",
+      "event": "cutback_observed",
+      "seconds_after_rollback": 0.44
+    }
+  ],
+  "checks": {
+    "candidate_ready": {
+      "status": "passed",
+      "at": "2026-10-15T22:51:02.991Z",
+      "duration_s": 8.0
+    },
+    "preview": {
+      "status": "passed",
+      "at": "2026-10-15T22:51:03.802Z",
+      "summary": "16/16 проверок прошли",
+      "pods": [
+        "mts-api-blue-8c8bd4d89-76rqp",
+        "mts-api-blue-8c8bd4d89-w9fmm"
+      ],
+      "probes": [
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "healthz",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "readyz",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "version_matches_release",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "list_tariffs",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "quote_known_answer",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "quote_without_token_401",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "quote_invalid_input_422",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "probe": "metrics_expose_release",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "healthz",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "readyz",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "version_matches_release",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "list_tariffs",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "quote_known_answer",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "quote_without_token_401",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "quote_invalid_input_422",
+          "passed": true
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "probe": "metrics_expose_release",
+          "passed": true
+        }
+      ]
+    },
+    "metrics_precheck": {
+      "status": "passed",
+      "at": "2026-10-15T22:51:09.902Z",
+      "summary": "кандидат виден в Prometheus",
+      "targets": {
+        "mts-api-blue-bcc666b55-gf8rf": 1.0,
+        "mts-api-blue-bcc666b55-94cr2": 1.0,
+        "mts-api-blue-8c8bd4d89-76rqp": 1.0,
+        "mts-api-blue-8c8bd4d89-w9fmm": 1.0
+      }
+    },
+    "switch_impact": {
+      "status": "measured",
+      "at": "2026-10-15T22:51:15.108Z",
+      "requests": 37,
+      "failed": 0,
+      "note": "ошибки прежнего релиза в окне ±2 с вокруг переключения (ошибки кандидата учитывает gate)"
+    },
+    "post_deploy_http": {
+      "status": "failed",
+      "at": "2026-10-15T22:51:15.108Z",
+      "passed": false,
+      "reasons": [
+        "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах"
+      ],
+      "details": {
+        "requests": 21,
+        "failed": 7,
+        "error_ratio": 0.3333333333333333,
+        "p95_seconds": 0.0061,
+        "served_by_release": {
+          "v3-faulty-20261015t225054z": 21
+        },
+        "failures_by_status": {
+          "500": 7
+        },
+        "candidate_share": 1.0,
+        "window_seconds_observed": 2.5
+      }
+    },
+    "metrics_gate": {
+      "status": "failed",
+      "at": "2026-10-15T22:51:15.108Z",
+      "passed": false,
+      "reasons": [
+        "не оценивалось: HTTP-gate уже провален"
+      ],
+      "details": {}
+    },
+    "metrics_evidence_after_rollback": {
+      "status": "recorded",
+      "at": "2026-10-15T22:51:26.424Z",
+      "note": "метрики кандидата за окно наблюдения; на решение не влияют",
+      "available": true,
+      "error": null,
+      "requests": 22.4,
+      "errors": 6.999999999999999,
+      "p95_seconds": 0.00475,
+      "build_info_pods": 2,
+      "targets": [
+        {
+          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "up": 1.0,
+          "age_seconds": 2.7
+        },
+        {
+          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "up": 1.0,
+          "age_seconds": 2.4
+        }
+      ],
+      "range_seconds": 14
+    }
+  },
+  "artifact": {
+    "image": "localhost:5001/mts-api@sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf",
+    "digest": "sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf",
+    "version": "v3-faulty",
+    "git_sha": "6453a7bb47b3-dirty",
+    "provenance": {
+      "stages": {
+        "lint": "passed",
+        "test": "passed",
+        "validate": "passed",
+        "build": "passed",
+        "scan": "passed",
+        "push": "passed"
+      },
+      "trivy": {
+        "result": "passed",
+        "version": "0.75.0",
+        "db_version": 2,
+        "db_updated_at": "2026-10-15T19:09:25.631494278Z",
+        "counts": {
+          "MEDIUM": 1
+        },
+        "blocking": [],
+        "unfixed_high_critical": 0
+      },
+      "built_at": "2026-10-15T22:50:49Z",
+      "base_image": "python@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a",
+      "local_image_id": "sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf"
+    }
+  },
+  "thresholds": {
+    "min_http_requests": 120,
+    "min_metric_requests": 60,
+    "max_error_ratio": 0.02,
+    "max_p95_seconds": 0.5,
+    "max_staleness_seconds": 20.0,
+    "min_candidate_share": 0.99,
+    "fail_fast_min_samples": 20,
+    "window_seconds": 30.0,
+    "rps": 8.0
+  },
+  "lock": {
+    "holder": "release/v3-faulty-20261015t225054z@vm#104654331",
+    "purpose": "release/v3-faulty-20261015t225054z",
+    "acquired_at": "2026-10-15T22:50:54.406Z"
+  },
+  "tools": {
+    "kubectl": "v1.36.5",
+    "helm": "v4.3.0+gbec5b06",
+    "k3s_server": "v1.36.5+k3s1"
+  },
+  "slots": {
+    "previous": {
+      "slot": "green",
+      "image": "localhost:5001/mts-api@sha256:e02d419c28fe002e1d5cbe930f3cead2f1af7ae027aa648ce360462fb62e8f7d",
+      "digest": "sha256:e02d419c28fe002e1d5cbe930f3cead2f1af7ae027aa648ce360462fb62e8f7d",
+      "version": "v2",
+      "release_id": "v2-20261015t224820z",
+      "git_sha": "6453a7bb47b3",
+      "replicas": 2,
+      "ready_replicas": 2
+    },
+    "candidate": {
+      "slot": "blue",
+      "digest": "sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf",
+      "version": "v3-faulty",
+      "release_id": "v3-faulty-20261015t225054z"
+    }
+  },
+  "switched_at": "2026-10-15T22:51:12.481Z",
+  "rollback": {
+    "performed": true,
+    "target_slot": "green",
+    "target_release": "v2-20261015t224820z",
+    "seconds_to_cutback": 0.44,
+    "recovery_verified": true,
+    "verification": {
+      "cutback_observed": true,
+      "requests": 85,
+      "failed": 0,
+      "error_ratio": 0.0,
+      "p95_seconds": 0.0062,
+      "served_by_release": {
+        "v2-20261015t224820z": 85
+      },
+      "failures_by_status": {},
+      "candidate_share": 1.0
+    }
+  },
+  "durations": {
+    "seconds_from_start": {
+      "deploy_started": 0.6,
+      "candidate_ready": 8.7,
+      "preview_passed": 9.5,
+      "metrics_precheck_passed": 15.6,
+      "traffic_switched": 18.2,
+      "cutover_observed": 18.8,
+      "traffic_rolled_back": 21.4,
+      "cutback_observed": 21.9,
+      "total": 32.3
+    }
+  }
+}

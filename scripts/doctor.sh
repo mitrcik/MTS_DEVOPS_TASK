@@ -57,6 +57,11 @@ if command -v docker >/dev/null 2>&1; then
     pass "Docker Engine ${dver} доступен текущему пользователю (это привилегированный доступ к хосту)"
     major="${dver%%.*}"
     [[ "${major}" =~ ^[0-9]+$ && "${major}" -ge 24 ]] || fail "нужен Docker Engine >= 24 (BuildKit secrets), найден ${dver}"
+    if bx="$(docker buildx version 2>/dev/null)"; then
+      pass "BuildKit/buildx: $(cut -d" " -f2 <<<"${bx}")"
+    else
+      fail "нет плагина buildx (нужен BuildKit для RUN --mount): sudo apt-get install -y docker-buildx или Docker CE"
+    fi
     if [[ "${cgv}" == "1" ]]; then
       warns "cgroup v1: kubelet >= 1.35 по умолчанию отказывается работать; будет добавлен kubelet-флаг fail-cgroupv1=false (Ubuntu 24.04 использует cgroup v2)"
     else

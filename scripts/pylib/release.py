@@ -331,14 +331,35 @@ class ReleaseController:
         ):
             self._switch(last_healthy["slot"])
             live = last_healthy["slot"]
-            self.report.event("traffic_restored_to_last_healthy", slot=live, release_id=last_healthy.get("release_id"))
-            ok(f"трафик возвращён на последний подтверждённый слот {live}")
+            # восстановление подтверждается на пользовательском пути, а не только селектором Service
+            seen = self._await_ingress_release(last_healthy.get("release_id", ""))
+            self.report.event(
+                "traffic_restored_to_last_healthy",
+                slot=live,
+                release_id=last_healthy.get("release_id"),
+                ingress_confirmed=seen,
+            )
+            if not seen:
+                raise RuntimeError("ingress не начал отдавать последний подтверждённый релиз за 30 с")
+            ok(f"трафик возвращён на слот {live}; ingress отдаёт {last_healthy.get('release_id')}")
         state["history"].append(
             {"release_id": state.get("operation"), "decision": "interrupted", "phase": phase, "at": iso(utcnow())}
         )
         state.update(phase="idle", operation=None, candidate=None)
         self.store.save(state)
         return live
+
+    def _await_ingress_release(self, release_id: str, timeout: float = 30, streak: int = 5) -> bool:
+        """Ждать, пока пользовательский ingress streak раз подряд отдаст указанный release id."""
+        deadline = time.time() + timeout
+        count = 0
+        while time.time() < deadline:
+            resp = request("GET", self.cfg.ingress_url + "/version", timeout=3)
+            count = count + 1 if resp.status == 200 and resp.json().get("release_id") == release_id else 0
+            if count >= streak:
+                return True
+            time.sleep(0.3)
+        return False
 
     # ------------------------------------------------------------- phases
     def _deploy_candidate(self, cand: str) -> tuple[bool, dict]:

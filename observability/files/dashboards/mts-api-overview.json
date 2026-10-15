@@ -39,7 +39,7 @@
         },
         "enable": true,
         "iconColor": "orange",
-        "step": "10s",
+        "step": "30s",
         "expr": "(sum by (slot) (rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\"}[20s])) > 0.5) unless (sum by (slot) (rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\"}[20s] offset 30s)) > 0.5)",
         "titleFormat": "трафик → {{slot}}",
         "textFormat": "слот {{slot}} начал обслуживать пользователей",

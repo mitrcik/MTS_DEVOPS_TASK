@@ -25,7 +25,7 @@ prometheus:
   evaluationInterval: 5s
   resources:
     requests: {cpu: 100m, memory: 256Mi}
-    limits: {cpu: "1", memory: 768Mi}
+    limits: {cpu: "1", memory: 1Gi}
 
 alertmanager:
   resources:
@@ -34,9 +34,10 @@ alertmanager:
 
 grafana:
   adminSecret: grafana-admin
+  # Grafana 13 при входе и загрузке дашборда превышала 384Mi (OOMKilled, найдено при проверке UI)
   resources:
-    requests: {cpu: 50m, memory: 128Mi}
-    limits: {cpu: 500m, memory: 384Mi}
+    requests: {cpu: 50m, memory: 192Mi}
+    limits: {cpu: "1", memory: 1Gi}
 
 blackbox:
   # проба идёт через Service Traefik — тот же путь, что у пользователя

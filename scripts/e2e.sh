@@ -30,7 +30,14 @@ scenario() {
   local dt=$(( $(date +%s) - t0 ))
   local report
   report="$(ls -t "${LOCAL_DIR}/reports/"*.md 2>/dev/null | head -1 || true)"
-  if [[ ${rc} -eq 0 ]]; then ok "${id}: OK (${dt} с)"; else err "${id}: FAIL rc=${rc} (${dt} с) — ${OUT}/${id}.log"; FAILED=$((FAILED + 1)); fi
+  if [[ ${rc} -eq 0 ]]; then
+    ok "${id}: OK (${dt} с)"
+  else
+    err "${id}: FAIL rc=${rc} (${dt} с) — ${OUT}/${id}.log"
+    # хвост лога — в общий вывод, чтобы причина была видна и в логах CI без артефактов
+    tail -n 25 "${OUT}/${id}.log" | sed 's/^/    | /' >&2
+    FAILED=$((FAILED + 1))
+  fi
   printf '%s\t%s\t%s\t%s\t%s\n' "${id}" "${expect}" "$([[ ${rc} -eq 0 ]] && echo passed || echo failed)" "${dt}" \
     "$(basename "${report:-—}")" >> "${SUMMARY}"
 }
