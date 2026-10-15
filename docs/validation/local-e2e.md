@@ -11,55 +11,59 @@
   (`K3D_EXTRA_ARGS`), закрыты get.helm.sh и блобы ghcr.io (helm 4.3.0 из `alpine/helm:4.3.0`,
   `K3D_IMAGE_TOOLS=rancher/k3d-tools:5.3.0`). Путь жюри без этих обходов проверен в GitHub Actions
   (`github-actions.md`).
-- Git SHA в отчётах этого прогона помечен `-dirty`: в рабочем дереве были незакоммиченные правки
-  документации и `scripts/doctor.sh` (проверка buildx); код релизного пути совпадал с коммитом `6453a7b`.
+- Финальный прогон выполнен на чистом закоммиченном дереве: Git SHA `697dc896dfc0` без пометки `-dirty`.
 
-## Полный приёмочный прогон `make test-e2e` — 2026-10-15 22:47–22:58 UTC
+## Финальный приёмочный прогон `make test-e2e` — 2026-10-15 23:11–23:22 UTC
 
-Команда: `make test-e2e`, код возврата 0, общее время 10 мин 44 с. Сводка — `reports/e2e-summary-20261015T224744Z.md`.
+Команда: `make test-e2e`, код возврата 0, общее время 10 мин 48 с. Сводка —
+`reports/e2e-summary-20261015T231116Z.md`. (Предыдущий полный прогон 22:47–22:58 UTC на том же коде
+плюс незакоммиченные правки документации тоже прошёл 15/15.)
 
 | сценарий | результат | время, с | доказательство |
 |---|---|---|---|
 | verify | passed | 1 | 14/14 проверок |
-| idempotent-up | passed | 20 | отпечатки ключа, SOPS-файла и активного релиза не изменились; `make up: 20 с` |
-| release (v2) | passed | 75 | `reports/release-v2-20261015t224820z.md` |
-| not-ready | passed | 77 | `reports/release-v3-notready-20261015t224935z.md` |
-| not-ready-safe | passed | 1 | активна v2 |
-| rollback | passed | 48 | `reports/release-v3-faulty-20261015t225054z.md` (+ `.json`) |
+| idempotent-up | passed | 21 | отпечатки ключа, SOPS-файла и активного релиза не изменились; `make up: 21 с` |
+| release (v2) | passed | 76 | `reports/release-v2-20261015t231155z.md` |
+| not-ready | passed | 78 | `reports/release-v3-notready-20261015t231310z.md` |
+| not-ready-safe | passed | 2 | активна v2 |
+| rollback | passed | 50 | `reports/release-v3-faulty-20261015t231429z.md` (+ `.json`) |
 | rollback-safe | passed | 1 | активна v2 |
-| interrupted | passed | 25 | `reports/recovery-recover-20261015t225150z.md` |
-| no-metrics | passed | 30 | `reports/release-v3-nometrics-20261015t225212z.md` |
-| alert | passed | 51 | `reports/alert-demo-20261015t225222z.md` |
-| rotation-chain | passed | 52 | `reports/rotation-20261015t225313z.md`; затем откат, токены проверены повторно |
-| concurrency | passed | 75 | `reports/release-v4-competing-20261015t225425z.md` (blocked) |
+| interrupted | passed | 27 | `reports/recovery-recover-20261015t231527z.md` |
+| no-metrics | passed | 27 | `reports/release-v3-nometrics-20261015t231548z.md` |
+| alert | passed | 49 | `reports/alert-demo-20261015t231559z.md` |
+| rotation-chain | passed | 50 | `reports/rotation-20261015t231648z.md`, затем `reports/release-v3-faulty-after-rotation-20261015t231708z.md` |
+| concurrency | passed | 77 | `reports/release-v4-competing-20261015t231759z.md`, `reports/rotation-20261015t231754z.md` (оба `blocked`) |
 | security | passed | 8 | 17/17 проверок |
-| down-up | passed | 179 | `make down` + `make up: 168 с` (образы в кэше Docker) |
+| down-up | passed | 179 | `make down` + `make up: 170 с` (образы в кэше Docker); `reports/release-v1-20261015t232106z.md` |
 | verify-again | passed | 1 | 14/14 |
 
-## Ключевые измерения
+## Ключевые измерения (финальный прогон)
 
 | Измерение | Значение | Источник |
 |---|---|---|
-| Холодный `make up` на чистом runner GitHub | 3 мин 21 с | `github-actions.md` |
-| `make up` после `make down` (образы в кэше) | 168 с | лог сценария down-up |
-| Повторный `make up` на работающем стенде | 20 с, изменений нет | idempotent-up |
-| Релиз с полным CI (`make release`) | 72–80 с, из них стадии CI ≈ 15 с | логи релизов |
-| Релиз-контроллер: развёртывание → готовность кандидата | 6–9 с | `durations` отчётов |
+| Холодный `make up` на чистом runner GitHub | 3 мин 21 с – 3 мин 25 с (3 прогона) | `github-actions.md` |
+| `make up` после `make down` (образы в кэше) | 170 с | лог сценария down-up |
+| Повторный `make up` на работающем стенде | 21 с, изменений нет | idempotent-up |
+| Релиз с полным CI (`make release`) | ≈ 76 с, из них стадии CI ≈ 15 с | release |
+| Развёртывание → готовность кандидата | 6–9 с | `durations` отчётов |
 | Переключение → новый релиз на ingress | 0,6–0,7 с | `cutover_observed` |
-| Окно post-deploy (успешный релиз) | 30 с, 245 запросов, 0 ошибок, p95 ≈ 6 мс | `post_deploy_http` |
-| Ошибки прежнего релиза в окне ±2 с вокруг переключения | 0 из 36–37 запросов (в каждом из релизов v2/v4/v3-faulty) | `switch_impact` |
-| Обнаружение дефекта после переключения | ранняя остановка через 2,6 с окна (21 запрос, 7 × HTTP 500) | `post_deploy_http` отката |
-| Возврат трафика → прежний релиз на ingress | 0,44–0,46 с | `rollback.seconds_to_cutback` |
+| Окно post-deploy (успешный релиз) | 30 с, 245–246 запросов, 0 ошибок, p95 ≈ 7 мс | `post_deploy_http` |
+| Ошибки прежнего релиза в окне ±2 с вокруг переключения | 0 из 36–37 запросов (v2, v4, оба отката) | `switch_impact` |
+| Обнаружение дефекта после переключения | ранняя остановка: 21 запрос, 7 × HTTP 500 (33%) | `post_deploy_http` откатов |
+| Возврат трафика → прежний релиз на ingress | 0,47–0,59 с | `rollback.seconds_to_cutback` |
 | Проверка восстановления после отката | 85–88 запросов, 0 ошибок | `rollback.verification` |
-| Независимое подтверждение по метрикам после отката | Prometheus: 7 ошибок 5xx из 22 запросов кандидата | `metrics_evidence_after_rollback` |
+| Полное время неудачного релиза до `rolled_back` | 28–34 с от старта контроллера | `durations.total` |
 | Отклонение неготового кандидата | 62 с (progressDeadlineSeconds 60 с) | not-ready |
-| Отклонение без метрик | 8 с от старта (Prometheus недоступен) | no-metrics |
-| Алерт: сбой → pending → firing → Alertmanager → восстановление → resolved | 0 → 10 с → 41 с → 43 с → 48 с → 51 с | alert-demo |
-| Ротация с перекрытием (4 pod, 2 слота) | 2,4 с | rotation |
+| Отклонение без метрик | 8 с от старта контроллера | no-metrics |
+| Алерт: сбой → pending → firing → Alertmanager → восстановление → resolved | 0 → 8 с → 37 с → 39 с → 45 с → 48 с | alert-demo |
+| Ротация с перекрытием (4 pod, 2 слота) | 2,8 с | rotation |
 | Потребление стенда в покое | узел k3d 1,63 ГиБ RAM / ~0,16 vCPU; registry 35 МиБ | `docker stats` |
 | Потребление по namespace (working set) | mts-app ≈ 300 МиБ (4 pod), monitoring ≈ 314 МиБ, kube-system ≈ 53 МиБ | cAdvisor через Prometheus |
+| Образ приложения | 29 МБ сжатых слоёв, ≈ 122 МБ распакованный | `docker image inspect` |
 
 Числа — один прогон на одной машине, не статистика и не SLA; они показывают порядок величин.
+В первом развёртывании (`release-v1-…`) `switch_impact` показывает ошибки «до переключения» —
+это 404 до появления маршрута к API, что отмечено в самом отчёте.
 
 ## Отдельные проверки во время разработки
 

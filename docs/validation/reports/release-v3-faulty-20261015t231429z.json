@@ -1,148 +1,148 @@
 {
   "kind": "release",
-  "id": "v3-faulty-20261015t225054z",
+  "id": "v3-faulty-20261015t231429z",
   "decision": "rolled_back",
   "reason": "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах",
-  "started_at": "2026-10-15T22:50:54.331Z",
-  "finished_at": "2026-10-15T22:51:26.607Z",
+  "started_at": "2026-10-15T23:14:29.799Z",
+  "finished_at": "2026-10-15T23:15:04.051Z",
   "timeline": [
     {
-      "at": "2026-10-15T22:50:54.929Z",
+      "at": "2026-10-15T23:14:30.399Z",
       "event": "deploy_started",
       "slot": "blue"
     },
     {
-      "at": "2026-10-15T22:51:02.991Z",
+      "at": "2026-10-15T23:14:37.354Z",
       "event": "candidate_ready"
     },
     {
-      "at": "2026-10-15T22:51:03.802Z",
+      "at": "2026-10-15T23:14:38.112Z",
       "event": "preview_passed",
       "probes": 16
     },
     {
-      "at": "2026-10-15T22:51:09.902Z",
+      "at": "2026-10-15T23:14:47.245Z",
       "event": "metrics_precheck_passed"
     },
     {
-      "at": "2026-10-15T22:51:12.481Z",
+      "at": "2026-10-15T23:14:49.873Z",
       "event": "traffic_switched",
       "to": "blue",
       "previous": "green"
     },
     {
-      "at": "2026-10-15T22:51:13.108Z",
+      "at": "2026-10-15T23:14:50.522Z",
       "event": "cutover_observed",
-      "seconds_after_switch": 0.51
+      "seconds_after_switch": 0.5
     },
     {
-      "at": "2026-10-15T22:51:15.108Z",
+      "at": "2026-10-15T23:14:52.523Z",
       "event": "fail_fast",
       "reason": "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах"
     },
     {
-      "at": "2026-10-15T22:51:15.723Z",
+      "at": "2026-10-15T23:14:53.158Z",
       "event": "traffic_rolled_back",
       "to": "green"
     },
     {
-      "at": "2026-10-15T22:51:16.223Z",
+      "at": "2026-10-15T23:14:53.659Z",
       "event": "cutback_observed",
-      "seconds_after_rollback": 0.44
+      "seconds_after_rollback": 0.47
     }
   ],
   "checks": {
     "candidate_ready": {
       "status": "passed",
-      "at": "2026-10-15T22:51:02.991Z",
-      "duration_s": 8.0
+      "at": "2026-10-15T23:14:37.354Z",
+      "duration_s": 6.9
     },
     "preview": {
       "status": "passed",
-      "at": "2026-10-15T22:51:03.802Z",
+      "at": "2026-10-15T23:14:38.112Z",
       "summary": "16/16 проверок прошли",
       "pods": [
-        "mts-api-blue-8c8bd4d89-76rqp",
-        "mts-api-blue-8c8bd4d89-w9fmm"
+        "mts-api-blue-7d84559fb6-hfqqg",
+        "mts-api-blue-7d84559fb6-pr5tb"
       ],
       "probes": [
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "healthz",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "readyz",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "version_matches_release",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "list_tariffs",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "quote_known_answer",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "quote_without_token_401",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "quote_invalid_input_422",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "probe": "metrics_expose_release",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "healthz",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "readyz",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "version_matches_release",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "list_tariffs",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "quote_known_answer",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "quote_without_token_401",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "quote_invalid_input_422",
           "passed": true
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "probe": "metrics_expose_release",
           "passed": true
         }
@@ -150,25 +150,25 @@
     },
     "metrics_precheck": {
       "status": "passed",
-      "at": "2026-10-15T22:51:09.902Z",
+      "at": "2026-10-15T23:14:47.245Z",
       "summary": "кандидат виден в Prometheus",
       "targets": {
-        "mts-api-blue-bcc666b55-gf8rf": 1.0,
-        "mts-api-blue-bcc666b55-94cr2": 1.0,
-        "mts-api-blue-8c8bd4d89-76rqp": 1.0,
-        "mts-api-blue-8c8bd4d89-w9fmm": 1.0
+        "mts-api-blue-6bfdddcb69-pp9ww": 1.0,
+        "mts-api-blue-6bfdddcb69-mg8rx": 1.0,
+        "mts-api-blue-7d84559fb6-hfqqg": 1.0,
+        "mts-api-blue-7d84559fb6-pr5tb": 1.0
       }
     },
     "switch_impact": {
       "status": "measured",
-      "at": "2026-10-15T22:51:15.108Z",
+      "at": "2026-10-15T23:14:52.523Z",
       "requests": 37,
       "failed": 0,
       "note": "ошибки прежнего релиза в окне ±2 с вокруг переключения (ошибки кандидата учитывает gate)"
     },
     "post_deploy_http": {
       "status": "failed",
-      "at": "2026-10-15T22:51:15.108Z",
+      "at": "2026-10-15T23:14:52.523Z",
       "passed": false,
       "reasons": [
         "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах"
@@ -177,20 +177,20 @@
         "requests": 21,
         "failed": 7,
         "error_ratio": 0.3333333333333333,
-        "p95_seconds": 0.0061,
+        "p95_seconds": 0.0062,
         "served_by_release": {
-          "v3-faulty-20261015t225054z": 21
+          "v3-faulty-20261015t231429z": 21
         },
         "failures_by_status": {
           "500": 7
         },
         "candidate_share": 1.0,
-        "window_seconds_observed": 2.5
+        "window_seconds_observed": 2.6
       }
     },
     "metrics_gate": {
       "status": "failed",
-      "at": "2026-10-15T22:51:15.108Z",
+      "at": "2026-10-15T23:14:52.523Z",
       "passed": false,
       "reasons": [
         "не оценивалось: HTTP-gate уже провален"
@@ -199,34 +199,34 @@
     },
     "metrics_evidence_after_rollback": {
       "status": "recorded",
-      "at": "2026-10-15T22:51:26.424Z",
+      "at": "2026-10-15T23:15:03.853Z",
       "note": "метрики кандидата за окно наблюдения; на решение не влияют",
       "available": true,
       "error": null,
-      "requests": 22.4,
-      "errors": 6.999999999999999,
+      "requests": 5.6,
+      "errors": 1.4,
       "p95_seconds": 0.00475,
       "build_info_pods": 2,
       "targets": [
         {
-          "pod": "mts-api-blue-8c8bd4d89-76rqp",
+          "pod": "mts-api-blue-7d84559fb6-hfqqg",
           "up": 1.0,
-          "age_seconds": 2.7
+          "age_seconds": 1.6
         },
         {
-          "pod": "mts-api-blue-8c8bd4d89-w9fmm",
+          "pod": "mts-api-blue-7d84559fb6-pr5tb",
           "up": 1.0,
-          "age_seconds": 2.4
+          "age_seconds": 4.4
         }
       ],
       "range_seconds": 14
     }
   },
   "artifact": {
-    "image": "localhost:5001/mts-api@sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf",
-    "digest": "sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf",
+    "image": "localhost:5001/mts-api@sha256:fa8b0e89cd95db1116b86db5b8602701381f1b570872eb75c40c51a7fbdaac52",
+    "digest": "sha256:fa8b0e89cd95db1116b86db5b8602701381f1b570872eb75c40c51a7fbdaac52",
     "version": "v3-faulty",
-    "git_sha": "6453a7bb47b3-dirty",
+    "git_sha": "697dc896dfc0",
     "provenance": {
       "stages": {
         "lint": "passed",
@@ -247,9 +247,9 @@
         "blocking": [],
         "unfixed_high_critical": 0
       },
-      "built_at": "2026-10-15T22:50:49Z",
+      "built_at": "2026-10-15T23:14:25Z",
       "base_image": "python@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a",
-      "local_image_id": "sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf"
+      "local_image_id": "sha256:fa8b0e89cd95db1116b86db5b8602701381f1b570872eb75c40c51a7fbdaac52"
     }
   },
   "thresholds": {
@@ -264,9 +264,9 @@
     "rps": 8.0
   },
   "lock": {
-    "holder": "release/v3-faulty-20261015t225054z@vm#104654331",
-    "purpose": "release/v3-faulty-20261015t225054z",
-    "acquired_at": "2026-10-15T22:50:54.406Z"
+    "holder": "release/v3-faulty-20261015t231429z@vm#106069799",
+    "purpose": "release/v3-faulty-20261015t231429z",
+    "acquired_at": "2026-10-15T23:14:29.873Z"
   },
   "tools": {
     "kubectl": "v1.36.5",
@@ -276,36 +276,36 @@
   "slots": {
     "previous": {
       "slot": "green",
-      "image": "localhost:5001/mts-api@sha256:e02d419c28fe002e1d5cbe930f3cead2f1af7ae027aa648ce360462fb62e8f7d",
-      "digest": "sha256:e02d419c28fe002e1d5cbe930f3cead2f1af7ae027aa648ce360462fb62e8f7d",
+      "image": "localhost:5001/mts-api@sha256:a4b55a0e8550274f09d5972444356118107f20d975e08fa35335b16bf1187798",
+      "digest": "sha256:a4b55a0e8550274f09d5972444356118107f20d975e08fa35335b16bf1187798",
       "version": "v2",
-      "release_id": "v2-20261015t224820z",
-      "git_sha": "6453a7bb47b3",
+      "release_id": "v2-20261015t231155z",
+      "git_sha": "697dc896dfc0",
       "replicas": 2,
       "ready_replicas": 2
     },
     "candidate": {
       "slot": "blue",
-      "digest": "sha256:892af913c41539692426bee7e240963c65e357fe5302dc91a46d7228092676cf",
+      "digest": "sha256:fa8b0e89cd95db1116b86db5b8602701381f1b570872eb75c40c51a7fbdaac52",
       "version": "v3-faulty",
-      "release_id": "v3-faulty-20261015t225054z"
+      "release_id": "v3-faulty-20261015t231429z"
     }
   },
-  "switched_at": "2026-10-15T22:51:12.481Z",
+  "switched_at": "2026-10-15T23:14:49.873Z",
   "rollback": {
     "performed": true,
     "target_slot": "green",
-    "target_release": "v2-20261015t224820z",
-    "seconds_to_cutback": 0.44,
+    "target_release": "v2-20261015t231155z",
+    "seconds_to_cutback": 0.47,
     "recovery_verified": true,
     "verification": {
       "cutback_observed": true,
       "requests": 85,
       "failed": 0,
       "error_ratio": 0.0,
-      "p95_seconds": 0.0062,
+      "p95_seconds": 0.007,
       "served_by_release": {
-        "v2-20261015t224820z": 85
+        "v2-20261015t231155z": 85
       },
       "failures_by_status": {},
       "candidate_share": 1.0
@@ -314,14 +314,14 @@
   "durations": {
     "seconds_from_start": {
       "deploy_started": 0.6,
-      "candidate_ready": 8.7,
-      "preview_passed": 9.5,
-      "metrics_precheck_passed": 15.6,
-      "traffic_switched": 18.2,
-      "cutover_observed": 18.8,
-      "traffic_rolled_back": 21.4,
-      "cutback_observed": 21.9,
-      "total": 32.3
+      "candidate_ready": 7.6,
+      "preview_passed": 8.3,
+      "metrics_precheck_passed": 17.4,
+      "traffic_switched": 20.1,
+      "cutover_observed": 20.7,
+      "traffic_rolled_back": 23.4,
+      "cutback_observed": 23.9,
+      "total": 34.3
     }
   }
 }
