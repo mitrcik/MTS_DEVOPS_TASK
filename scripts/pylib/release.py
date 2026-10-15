@@ -119,7 +119,7 @@ def tool_versions(kube: Kube) -> dict:
 
 
 class ReleaseController:
-    def __init__(self, cfg: Config, artifact: Artifact) -> None:
+    def __init__(self, cfg: Config, artifact: Artifact | None) -> None:
         self.cfg = cfg
         self.art = artifact
         self.kube = Kube(cfg.deploy_kubeconfig, cfg.namespace)
@@ -135,8 +135,13 @@ class ReleaseController:
         self.rps = cfg.num("LOAD_RPS", 8)
         self.deploy_timeout = int(cfg.num("DEPLOY_TIMEOUT_SECONDS", 120))
         self.scrape_wait = cfg.num("SCRAPE_WAIT_SECONDS", 12)
-        self.release_id = f"{artifact.version}-{utcnow():%Y%m%dt%H%M%S}z".lower()
-        self.report = Report("release", self.release_id, cfg.reports_dir)
+        stamp = f"{utcnow():%Y%m%dt%H%M%S}z"
+        if artifact is None:  # режим восстановления без нового артефакта
+            self.release_id = f"recover-{stamp}"
+            self.report = Report("recovery", self.release_id, cfg.reports_dir)
+        else:
+            self.release_id = f"{artifact.version}-{stamp}".lower()
+            self.report = Report("release", self.release_id, cfg.reports_dir)
         self.lock: StandLock | None = None
         self.token = ""
         self._t0 = time.time()
@@ -147,6 +152,31 @@ class ReleaseController:
         self.report.event(name, **fields)
 
     # ------------------------------------------------------------------ public
+    def recover(self) -> str:
+        """Только восстановление: под блокировкой вернуть трафик на последний подтверждённый
+        релиз, если предыдущая операция прервана, и снять зависшие Helm-релизы."""
+        try:
+            with StandLock(self.kube, self.release_id, wait_seconds=self.cfg.num("LOCK_WAIT_SECONDS", 0)) as lock:
+                self.lock = lock
+                state = self.store.load()
+                live = live_active_slot(self.kube)
+                phase = state.get("phase") or "idle"
+                self.report.set(
+                    "before",
+                    {"phase": phase, "live_slot": live, "last_healthy": (state.get("active") or {}).get("release_id")},
+                )
+                if live:
+                    self._unstick_helm(slot_release(other_slot(live)))
+                if phase == "idle":
+                    ok("прерванных операций нет — стенд в согласованном состоянии")
+                    return self._finish("nothing_to_recover", None)
+                live = self._recover_if_interrupted(state, live)
+                self.report.set("after", {"live_slot": live})
+                return self._finish("recovered", f"прервана операция в фазе {phase}")
+        except LockBusy as exc:
+            fail(str(exc))
+            return self._finish("blocked", str(exc))
+
     def run(self) -> str:
         self.report.set("artifact", self.art.as_dict())
         self.report.set("thresholds", self.t.__dict__ | {"window_seconds": self.window, "rps": self.rps})
@@ -313,6 +343,7 @@ class ReleaseController:
     # ------------------------------------------------------------- phases
     def _deploy_candidate(self, cand: str) -> tuple[bool, dict]:
         log(f"разворачиваю {self.art.image} в слот {cand} (helm --wait, таймаут {self.deploy_timeout}s)")
+        self._unstick_helm(slot_release(cand))
         started = time.time()
         args = [
             "upgrade",
@@ -442,8 +473,36 @@ class ReleaseController:
             return False, {"summary": f"Prometheus недоступен: {exc}"}
         return False, {"summary": "Prometheus не начал скрейпить pod кандидата за 60 с"}
 
+    def _unstick_helm(self, release: str) -> None:
+        """Снять «зависшее» состояние Helm (pending-*) после прерванного процесса.
+
+        Вызывается только под общей блокировкой стенда, поэтому pending-статус гарантированно
+        оставлен мёртвым процессом, а не идущей операцией. Применяется к неактивному слоту и к
+        релизу маршрутизации — релиз активного слота контроллер никогда не обновляет.
+        """
+        proc = self.kube.helm("history", release, "-o", "json", "--max", "20", check=False)
+        if proc.returncode != 0:
+            return  # релиза ещё нет
+        history = json.loads(proc.stdout or "[]")
+        if not history or not str(history[-1].get("status", "")).startswith("pending"):
+            return
+        stuck = history[-1]
+        good = [h for h in history if h.get("status") in ("deployed", "superseded")]
+        if good:
+            target = good[-1]["revision"]
+            self.kube.helm("rollback", release, str(target), "--wait", "--timeout", "120s", timeout=180)
+        else:
+            self.kube.helm("uninstall", release, "--wait", "--timeout", "120s", timeout=180)
+            target = None
+        warn(
+            f"Helm-релиз {release} был в состоянии {stuck['status']} (прерванный процесс); "
+            f"{'откат к ревизии ' + str(target) if target else 'удалён'}"
+        )
+        self.report.event("helm_release_unstuck", release=release, status=stuck["status"], rollback_to=target)
+
     def _switch(self, slot: str) -> None:
         log(f"переключаю стабильный Service mts-api-active на слот {slot}")
+        self._unstick_helm(TRAFFIC_RELEASE)
         self.kube.helm(
             "upgrade",
             "--install",

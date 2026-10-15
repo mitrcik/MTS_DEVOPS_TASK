@@ -65,6 +65,10 @@ demo-no-metrics: ## Релиз при недоступном Prometheus → gate
 demo-alert: ## Реальный сбой → алерт firing → восстановление → resolved
 	@$(BGCTL) demo-alert
 
+.PHONY: recover
+recover: ## Восстановить стенд после прерванного релиза (вернуть трафик на подтверждённый релиз)
+	@$(BGCTL) recover
+
 .PHONY: rotate-secret
 rotate-secret: ## Ротация учебного API-токена с перекрытием и проверкой обоих слотов
 	@$(BGCTL) rotate-secret

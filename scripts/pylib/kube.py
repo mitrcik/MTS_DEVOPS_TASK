@@ -49,9 +49,9 @@ class Kube:
             raise CmdError(["kubectl", "get", *args], proc.returncode, proc.stdout, proc.stderr)
         return json.loads(proc.stdout)
 
-    def helm(self, *args: str, timeout: float = 300) -> subprocess.CompletedProcess[str]:
+    def helm(self, *args: str, timeout: float = 300, check: bool = True) -> subprocess.CompletedProcess[str]:
         cmd = [tool("helm"), "--kubeconfig", str(self.kubeconfig), "--namespace", self.namespace]
-        return run([*cmd, *args], timeout=timeout)
+        return run([*cmd, *args], timeout=timeout, check=check)
 
     def server_version(self) -> str:
         proc = self.kubectl("version", "-o", "json", check=False)

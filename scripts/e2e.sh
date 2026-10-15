@@ -82,6 +82,35 @@ concurrent_release() {
   echo "основной релиз: rc=${rc_main} (ожидается 0)"
   [[ ${rc_rot} -eq 10 && ${rc_rel} -eq 10 && ${rc_main} -eq 0 ]]
 }
+interrupted_release() {
+  # Контроллер получает SIGTERM уже после переключения трафика (фаза observing).
+  # Ожидание: блокировка освобождена, фаза сохранена; bgctl recover возвращает трафик
+  # на последний подтверждённый релиз.
+  local K=("${LOCAL_DIR}/bin/kubectl" --kubeconfig "${DEPLOY_KUBECONFIG}" -n mts-app)
+  local before
+  before="$("${BGCTL[@]}" active | "${PY}" -c 'import json,sys; print(json.load(sys.stdin)["active"]["release_id"])')"
+  CI_STAGES="build scan push" "${ROOT_DIR}/scripts/release.sh" --version v6-interrupted > "${OUT}/interrupted-main.log" 2>&1 &
+  local main=$! phase="" pid=""
+  for _ in $(seq 1 600); do
+    phase="$("${K[@]}" get configmap mts-api-release-state -o jsonpath='{.data.state\.json}' 2>/dev/null \
+             | "${PY}" -c 'import json,sys; print(json.load(sys.stdin).get("phase",""))' 2>/dev/null || true)"
+    [[ "${phase}" == "observing" ]] && break
+    sleep 1
+  done
+  # процесс контроллера — дочерний у release.sh этого сценария (не ищем по всей системе)
+  pid="$(pgrep -P "${main}" -f 'bgctl.py release' | head -1 || true)"
+  echo "фаза перед прерыванием: ${phase}; активный слот: $("${K[@]}" get svc mts-api-active -o jsonpath='{.spec.selector.slot}'); pid=${pid}"
+  [[ "${phase}" == "observing" && -n "${pid}" ]] || return 1
+  kill -TERM "${pid}"
+  wait "${main}" || true
+  echo "после SIGTERM: фаза=$("${K[@]}" get configmap mts-api-release-state -o jsonpath='{.data.state\.json}' \
+        | "${PY}" -c 'import json,sys; print(json.load(sys.stdin)["phase"])'), блокировка: $("${K[@]}" get lease mts-api-change-lock >/dev/null 2>&1 && echo занята || echo свободна)"
+  "${BGCTL[@]}" recover
+  local after
+  after="$("${BGCTL[@]}" active | "${PY}" -c 'import json,sys; d=json.load(sys.stdin); print(d["active"]["release_id"], d["live_slot"], d["active"]["slot"])')"
+  echo "последний подтверждённый релиз до: ${before}; после восстановления: ${after}"
+  [[ "${after%% *}" == "${before}" ]] && "${BGCTL[@]}" active >/dev/null && "${BGCTL[@]}" verify
+}
 down_and_up() {
   make -C "${ROOT_DIR}" down
   [[ -z "$(docker ps -aq --filter "label=k3d.cluster=${CLUSTER_NAME}")" ]]
@@ -99,6 +128,7 @@ scenario not-ready-safe "после отклонения пользовател�
 scenario rollback       "дефект после переключения → автоматический возврат трафика"     \
   "${ROOT_DIR}/scripts/release.sh" --version v3-faulty --fault errors-behind-ingress --expect rolled_back
 scenario rollback-safe  "после возврата пользователи на v2, бизнес-методы работают"     still_active v2
+scenario interrupted    "SIGTERM контроллеру после переключения → recover возвращает трафик" interrupted_release
 scenario no-metrics     "Prometheus недоступен → gate не даёт ложного успеха"           \
   env VERSION=v3-nometrics "${ROOT_DIR}/scripts/demo-no-metrics.sh"
 scenario alert          "реальный сбой → firing → восстановление → resolved"            "${BGCTL[@]}" demo-alert

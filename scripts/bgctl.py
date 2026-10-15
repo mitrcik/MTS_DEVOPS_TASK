@@ -127,6 +127,13 @@ def cmd_release(cfg: Config, args: argparse.Namespace) -> int:
     return EXIT.get(decision, 1)
 
 
+def cmd_recover(cfg: Config, _: argparse.Namespace) -> int:
+    from pylib.release import ReleaseController
+
+    decision = ReleaseController(cfg, None).recover()
+    return {"recovered": 0, "nothing_to_recover": 0, "blocked": 10}.get(decision, 1)
+
+
 def cmd_rotate(cfg: Config, _: argparse.Namespace) -> int:
     from pylib.rotation import rotate
 
@@ -217,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=["promoted", "rejected", "rolled_back", "noop"],
         help="для сценариев: код 0, если решение совпало с ожидаемым",
     )
+    sub.add_parser("recover", help="восстановить стенд после прерванного релиза")
     sub.add_parser("rotate-secret", help="ротация API-токена с перекрытием")
     p = sub.add_parser("token-probe", help="приёмочная проверка отзыва токена (e2e)")
     g = p.add_mutually_exclusive_group(required=True)
