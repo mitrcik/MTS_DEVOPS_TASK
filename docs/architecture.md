@@ -16,7 +16,7 @@ flowchart LR
   subgraph GH["GitHub"]
     GHA["Actions: checks → image → e2e"]
     GHCR[("GHCR<br/>образ по digest")]
-    DEP["job deploy (main)<br/>SSH + known_hosts"]
+    DEP["job deploy (ветка по умолчанию)<br/>SSH + known_hosts"]
   end
 
   subgraph Docker["Docker Engine хоста"]

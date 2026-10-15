@@ -1,0 +1,131 @@
+# Совместимость с ВМ пользователя: тот же путь, что в docs/vm-guide.md
+# (make prereqs → make doctor → make up → приёмочные сценарии), на других версиях Ubuntu и arm64.
+#
+#   pins     — закреплённые sha256 инструментов (amd64 и arm64) против официальных файлов checksum
+#   vm       — чистые GitHub-hosted ВМ: Ubuntu 22.04 x86_64 и Ubuntu 24.04 aarch64
+#   userland — Ubuntu 22.04 / 24.04 / 26.04 как пользовательское окружение в контейнере:
+#              apt-пакеты (docker.io, docker-buildx, Python), Ansible, CLI; ядро и Docker Engine — runner'а
+#
+# Ubuntu 24.04 x86_64 на чистой ВМ проверяется на каждый push в ci.yml (job e2e).
+name: compat
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"  # еженедельно: внешние источники (архивы Ubuntu, PPA, Docker Hub) меняются
+  push:
+    paths:
+      - scripts/install-prereqs.sh
+      - scripts/bootstrap-venv.sh
+      - scripts/doctor.sh
+      - scripts/lib.sh
+      - infra/tools/tools.yml
+      - infra/tooling/requirements.lock
+      - .github/workflows/compat.yml
+
+permissions: {}
+
+concurrency:
+  group: compat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pins:
+    name: sha256 инструментов против официальных checksum
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: venv (ansible-core, PyYAML) по хешам
+        run: make venv
+      - name: Сверка tools.yml с файлами checksum проектов
+        run: .local/venv/bin/python scripts/cihelper.py check-tool-pins infra/tools/tools.yml
+
+  vm:
+    name: ВМ ${{ matrix.name }}
+    needs: pins
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 22.04 x86_64
+            runner: ubuntu-22.04
+          - name: Ubuntu 24.04 aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: make prereqs
+        run: make prereqs
+      - name: make doctor
+        run: make doctor
+      - name: make up
+        run: make up
+      - name: Приёмочные сценарии
+        run: make test-e2e
+      - name: Отчёты
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: compat-${{ matrix.runner }}
+          path: |
+            .local/reports/
+            .local/e2e/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: make down
+        if: always()
+        run: make down
+
+  userland:
+    name: Ubuntu ${{ matrix.ubuntu }} (окружение в контейнере)
+    needs: pins
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ["22.04", "24.04", "26.04"]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: make prereqs → doctor → up → сценарии → down в ubuntu:${{ matrix.ubuntu }}
+        env:
+          UBUNTU: ${{ matrix.ubuntu }}
+        # --network host: порты стенда на 127.0.0.1 runner'а видны из контейнера;
+        # одинаковый путь к репозиторию: k3d монтирует файлы .local по путям хоста.
+        run: |
+          docker run --rm --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}:${PWD}" -w "${PWD}" -e HOME=/root \
+            "docker.io/library/ubuntu:${UBUNTU}" \
+            bash -euo pipefail -c '
+              apt-get update -q && apt-get install -y -q --no-install-recommends make
+              make prereqs
+              make doctor
+              make up
+              rc=0; make test-e2e || rc=$?
+              make down
+              exit "${rc}"'
+      - name: Отчёты
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: compat-userland-${{ matrix.ubuntu }}
+          path: |
+            .local/reports/
+            .local/e2e/
+          if-no-files-found: warn
+          retention-days: 30

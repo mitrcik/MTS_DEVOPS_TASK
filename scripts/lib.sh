@@ -60,6 +60,21 @@ git_dirty() {
   if git -C "${ROOT_DIR}" diff --quiet HEAD -- 2>/dev/null; then echo false; else echo true; fi
 }
 
+# Интерпретатор для .local/venv: Python >= 3.12 с модулями venv и ensurepip. Порядок: $PYTHON
+# (из .env), python3, затем python3.14/3.13/3.12 (Ubuntu 22.04: python3.12 из PPA deadsnakes).
+find_python() {
+  local c
+  for c in ${PYTHON:-} python3 python3.14 python3.13 python3.12; do
+    command -v "${c}" >/dev/null 2>&1 || continue
+    if "${c}" -c 'import sys, venv, ensurepip; sys.exit(0 if sys.version_info >= (3, 12) else 1)' \
+      >/dev/null 2>&1; then
+      command -v "${c}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 venv_python() {
   local py="${LOCAL_DIR}/venv/bin/python"
   [[ -x "${py}" ]] || die "нет ${py}; выполните make venv (или make up)"

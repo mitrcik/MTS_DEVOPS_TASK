@@ -221,6 +221,45 @@ def cmd_check_tracked_files(root: str) -> int:
     return 1 if errors else 0
 
 
+def _official_sha256(checksum_url: str, artifact_url: str) -> str:
+    """sha256 артефакта из опубликованного файла: одиночный хеш или строки «<хеш>  <имя>»."""
+    import urllib.request
+
+    with urllib.request.urlopen(checksum_url, timeout=30) as resp:
+        lines = [ln.split() for ln in resp.read().decode().splitlines() if ln.strip()]
+    if len(lines) == 1 and len(lines[0]) == 1:
+        return lines[0][0].lower()
+    name = artifact_url.rsplit("/", 1)[-1]
+    for parts in lines:
+        if len(parts) >= 2 and parts[-1].lstrip("*").rsplit("/", 1)[-1] == name:
+            return parts[0].lower()
+    raise LookupError(f"в {checksum_url} нет строки для {name}")
+
+
+def cmd_check_tool_pins(path: str) -> int:
+    """Сверка закреплённых sha256 (все архитектуры) с официальными файлами контрольных сумм."""
+    tools = yaml.safe_load(Path(path).read_text(encoding="utf-8"))["tools"]
+    errors = 0
+    for tool in tools:
+        for arch, pkg in tool["platforms"].items():
+            label = f"{tool['name']} {tool['version']} {arch}"
+            if not pkg.get("checksum_url"):
+                print(f"[skip] {label}: проект не публикует файл checksum", file=sys.stderr)
+                continue
+            try:
+                official = _official_sha256(pkg["checksum_url"], pkg["url"])
+            except (OSError, LookupError) as exc:
+                print(f"[FAIL] {label}: не удалось получить checksum: {exc}", file=sys.stderr)
+                errors += 1
+                continue
+            if official == pkg["sha256"].lower():
+                print(f"[ OK ] {label}: {official}", file=sys.stderr)
+            else:
+                print(f"[FAIL] {label}: закреплено {pkg['sha256']}, официально {official}", file=sys.stderr)
+                errors += 1
+    return 1 if errors else 0
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)

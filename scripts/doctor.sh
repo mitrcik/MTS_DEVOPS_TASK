@@ -20,38 +20,37 @@ if [[ -r /etc/os-release ]]; then
   # shellcheck disable=SC1091
   os_id="$(. /etc/os-release && echo "${ID}")"; os_ver="$(. /etc/os-release && echo "${VERSION_ID}")"
 fi
-if [[ "${os_id}" == "ubuntu" && "${os_ver}" == "24.04" ]]; then
-  pass "ОС: Ubuntu ${os_ver} (основной поддерживаемый профиль)"
-else
-  warns "ОС ${os_id} ${os_ver}: проверялся только Ubuntu 24.04 LTS x86_64"
-fi
+case "${os_id} ${os_ver}" in
+  "ubuntu 22.04"|"ubuntu 24.04"|"ubuntu 26.04") pass "ОС: Ubuntu ${os_ver} (поддерживаемый профиль)" ;;
+  *) warns "ОС ${os_id} ${os_ver}: проверялись Ubuntu 22.04, 24.04, 26.04 LTS" ;;
+esac
 arch="$(uname -m)"
-if [[ "${arch}" == "x86_64" ]]; then
-  pass "архитектура: ${arch}"
-else
-  fail "архитектура ${arch}: закреплённые инструменты (infra/tools/tools.yml) только для linux/amd64"
-fi
+case "${arch}" in
+  x86_64|aarch64) pass "архитектура: ${arch}" ;;
+  *) fail "архитектура ${arch}: закреплённые инструменты (infra/tools/tools.yml) есть для x86_64 и aarch64" ;;
+esac
 
 # --- Команды ----------------------------------------------------------------
 for c in git make curl tar sha256sum python3 docker; do
   if command -v "${c}" >/dev/null 2>&1; then pass "команда ${c}: $(command -v "${c}")"
-  else fail "нет команды ${c} (sudo apt-get install -y git make curl python3-venv; Docker — см. README)"; fi
+  else fail "нет команды ${c} — на Ubuntu выполните: make prereqs (или scripts/install-prereqs.sh)"; fi
 done
-if command -v python3 >/dev/null 2>&1; then
-  if python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3,12) else 1)'; then
-    pass "python3 $(python3 -c 'import platform; print(platform.python_version())')"
-  else
-    fail "нужен python3 >= 3.12"
-  fi
-  if python3 -c 'import venv, ensurepip' >/dev/null 2>&1 || [[ -x "${LOCAL_DIR}/venv/bin/python" ]]; then
-    pass "python3 venv доступен"
-  else
-    fail "модуль venv/ensurepip недоступен: sudo apt-get install -y python3-venv"
-  fi
+if [[ -x "${LOCAL_DIR}/venv/bin/python" ]]; then
+  pass "Python в .local/venv: $("${LOCAL_DIR}/venv/bin/python" -c 'import platform; print(platform.python_version())')"
+elif py="$(find_python)"; then
+  pass "Python для .local/venv: ${py} ($("${py}" -c 'import platform; print(platform.python_version())'))"
+elif command -v python3 >/dev/null 2>&1 \
+  && python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)'; then
+  fail "у python3 нет модуля venv/ensurepip: make prereqs (или sudo apt-get install -y python3-venv)"
+else
+  fail "нужен Python >= 3.12 с venv: make prereqs (Ubuntu 22.04 — python3.12 из PPA deadsnakes) или PYTHON=/путь в .env"
 fi
 
 # --- Docker -----------------------------------------------------------------
 if command -v docker >/dev/null 2>&1; then
+  if [[ "$(readlink -f "$(command -v docker)")" == /snap/* ]]; then
+    warns "Docker из snap: строгая изоляция snap мешает монтированию файлов проекта в узел k3d; рекомендуется docker.io из Ubuntu (sudo snap remove docker && make prereqs)"
+  fi
   if info="$(docker info --format '{{.ServerVersion}}|{{.CgroupVersion}}|{{.NCPU}}|{{.MemTotal}}' 2>&1)"; then
     IFS='|' read -r dver cgv ncpu mem <<<"${info}"
     pass "Docker Engine ${dver} доступен текущему пользователю (это привилегированный доступ к хосту)"
@@ -78,20 +77,24 @@ if command -v docker >/dev/null 2>&1; then
     if grep -qi 'permission denied' <<<"${info}"; then
       fail "нет доступа к Docker: добавьте пользователя в группу docker (sudo usermod -aG docker \$USER, затем перелогиньтесь). Это эквивалент root-доступа."
     else
-      fail "Docker daemon недоступен: ${info%%$'\n'*}"
+      fail "Docker daemon недоступен (sudo systemctl start docker): ${info%%$'\n'*}"
     fi
   fi
 fi
 
 # --- Диск -------------------------------------------------------------------
 free_gb=$(( $(df -Pk "${ROOT_DIR}" | awk 'NR==2 {print $4}') / 1024 / 1024 ))
-docker_root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)"
-dfree_gb=$(( $(df -Pk "${docker_root}" 2>/dev/null | awk 'NR==2 {print $4}' || echo 0) / 1024 / 1024 ))
 if (( free_gb >= 2 )); then pass "свободно в каталоге проекта: ${free_gb} ГБ"
 else fail "мало места в каталоге проекта: ${free_gb} ГБ (нужно >= 2)"; fi
-if (( dfree_gb >= 10 )); then pass "свободно для Docker (${docker_root}): ${dfree_gb} ГБ"
-elif (( dfree_gb >= 6 )); then warns "для Docker свободно ${dfree_gb} ГБ (рекомендуется >= 10)"
-else fail "для Docker свободно ${dfree_gb} ГБ (нужно >= 6)"; fi
+docker_root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)"
+if [[ -d "${docker_root}" ]]; then
+  dfree_gb=$(( $(df -Pk "${docker_root}" | awk 'NR==2 {print $4}') / 1024 / 1024 ))
+  if (( dfree_gb >= 10 )); then pass "свободно для Docker (${docker_root}): ${dfree_gb} ГБ"
+  elif (( dfree_gb >= 6 )); then warns "для Docker свободно ${dfree_gb} ГБ (рекомендуется >= 10)"
+  else fail "для Docker свободно ${dfree_gb} ГБ (нужно >= 6)"; fi
+else
+  warns "каталог данных Docker ${docker_root} не виден отсюда (удалённый daemon или контейнер) — место не проверено"
+fi
 
 # --- Лимиты inotify (частая причина «too many open files» в k3s-in-docker) ----
 inst="$(cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || echo 0)"

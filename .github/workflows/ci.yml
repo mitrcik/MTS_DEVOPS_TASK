@@ -2,7 +2,8 @@
 #
 #   push (любая ветка) : checks → image (build, Trivy, публикация в GHCR) и e2e (одноразовый k3d в runner)
 #   pull_request       : checks → image (build, Trivy; без публикации и без секретов) и e2e
-#   push в main        : + deploy на постоянный стенд по SSH, если настроены vars/secrets (docs/remote-cd.md)
+#   push в ветку по умолчанию: + deploy на постоянный стенд по SSH, если настроены vars/secrets
+#                        (docs/remote-cd.md)
 #
 # e2e — интеграционная проверка на одноразовом кластере в runner, НЕ доставка в production.
 name: ci
@@ -115,7 +116,9 @@ jobs:
   deploy:
     name: CD → постоянный стенд (SSH)
     needs: image
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
+    if: >-
+      github.event_name == 'push' && vars.DEPLOY_HOST != '' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: production

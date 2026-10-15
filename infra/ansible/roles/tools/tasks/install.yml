@@ -5,14 +5,14 @@
   changed_when: false
   failed_when: false
 
-- name: "{{ tool.name }} {{ tool.version }}: загрузка и установка"
+- name: "{{ tool.name }} {{ tool.version }} ({{ host_arch }}): загрузка и установка"
   when: tool.version_match not in (tool_current.stdout | default('')) + (tool_current.stderr | default(''))
   block:
     - name: "{{ tool.name }}: загрузка (get_url проверяет sha256 до сохранения)"
       ansible.builtin.get_url:
-        url: "{{ tool.url }}"
-        dest: "{{ downloads_dir }}/{{ tool.url | basename }}"
-        checksum: "sha256:{{ tool.sha256 }}"
+        url: "{{ tool_pkg.url }}"
+        dest: "{{ downloads_dir }}/{{ tool_pkg.url | basename }}"
+        checksum: "sha256:{{ tool_pkg.sha256 }}"
         mode: "0644"
         timeout: 60
       # корпоративный TLS-прокси: доверять дополнительному CA-бандлу (EXTRA_CA_BUNDLE)
@@ -35,14 +35,14 @@
             src: "{{ tool_download.dest }}"
             dest: "{{ downloads_dir }}/{{ tool.name }}-{{ tool.version }}"
             remote_src: true
-            include: "{{ tool.members }}"
+            include: "{{ tool_pkg.members }}"
         - name: "{{ tool.name }}: установка в .local/bin"
           ansible.builtin.copy:
             src: "{{ downloads_dir }}/{{ tool.name }}-{{ tool.version }}/{{ member }}"
             dest: "{{ bin_dir }}/{{ member | basename }}"
             remote_src: true
             mode: "0755"
-          loop: "{{ tool.members }}"
+          loop: "{{ tool_pkg.members }}"
           loop_control:
             loop_var: member
 

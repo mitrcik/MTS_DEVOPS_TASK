@@ -15,7 +15,7 @@ GitHub-hosted runner не имеет сетевого доступа к клас
 
 ```mermaid
 sequenceDiagram
-  participant GA as GitHub Actions (main)
+  participant GA as GitHub Actions (ветка по умолчанию)
   participant H as Ubuntu-стенд (deploy@host)
   participant K as k3s на стенде
   GA->>GA: image: build → Trivy → push в GHCR → provenance.json

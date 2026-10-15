@@ -16,6 +16,10 @@ PLAYBOOK := scripts/playbook.sh
 help: ## Список команд
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+.PHONY: prereqs
+prereqs: ## Однократно на чистой Ubuntu 22.04/24.04/26.04: Docker+buildx, Python, git, make (через sudo)
+	@scripts/install-prereqs.sh
+
 .PHONY: venv
 venv: ## Python venv с закреплёнными ansible-core/yamllint/ruff (по хешам)
 	@scripts/bootstrap-venv.sh

@@ -3,6 +3,16 @@
     file: "{{ project_dir }}/infra/tools/tools.yml"
     name: tools_lock
 
+- name: Архитектура хоста (x86_64 → amd64, aarch64 → arm64)
+  ansible.builtin.set_fact:
+    host_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(lookup('ansible.builtin.pipe', 'uname -m'), 'unsupported') }}"
+
+- name: Для архитектуры есть закреплённые сборки
+  ansible.builtin.assert:
+    that: host_arch != 'unsupported'
+    fail_msg: "архитектура {{ lookup('ansible.builtin.pipe', 'uname -m') }} не поддерживается: в infra/tools/tools.yml есть amd64 и arm64"
+    quiet: true
+
 - name: Каталоги инструментов
   ansible.builtin.file:
     path: "{{ item }}"
@@ -17,4 +27,6 @@
   loop: "{{ tools_lock.tools }}"
   loop_control:
     loop_var: tool
-    label: "{{ tool.name }} {{ tool.version }}"
+    label: "{{ tool.name }} {{ tool.version }} ({{ host_arch }})"
+  vars:
+    tool_pkg: "{{ tool.platforms[host_arch] }}"

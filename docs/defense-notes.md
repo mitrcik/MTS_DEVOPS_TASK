@@ -38,7 +38,7 @@ Release controller (`Artifact.from_provenance`) отказывает, если `
 - GitHub-hosted runner **не** имеет доступа к кластеру на ноутбуке. Локальный путь жюри не зависит
   от GitHub. В GitHub: `checks` и `image` (сборка, Trivy, публикация в GHCR) и `e2e` — одноразовый
   k3d внутри runner (интеграционная проверка, не доставка).
-- Постоянный стенд: job `deploy` (только `main`) передаёт `provenance.json` по SSH с проверкой
+- Постоянный стенд: job `deploy` (только ветка по умолчанию) передаёт `provenance.json` по SSH с проверкой
   `known_hosts` пользователю `deploy`, у которого forced command `scripts/remote/deploy-gate.sh`
   (только `status` и `release`). На стенде релиз выполняет тот же `bgctl` с kubeconfig
   ServiceAccount `release-controller` (Role только в `mts-app`). Kubeconfig администратора не
