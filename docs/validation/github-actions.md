@@ -55,4 +55,45 @@ Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38819507850
 применял новые endpoints (~0,5 с), и получала ответ прерванного релиза. Исправление: `recover`
 подтверждает восстановление на пользовательском пути — ждёт, пока ingress 5 раз подряд отдаст
 release id последнего подтверждённого релиза (иначе ошибка); `e2e.sh` при падении выводит хвост
-лога сценария в общий лог CI. Повторная проверка — прогон #3.
+лога сценария в общий лог CI. Повторная проверка — прогон #3 (ниже): все 15 сценариев прошли,
+в том числе `interrupted`. Это согласуется с исправлением, но один зелёный прогон не доказывает
+исходную гипотезу о причине.
+
+## Прогон #3 — commit `e6a19d1` (recover ждёт переключения на ingress) — все jobs зелёные
+
+Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38822012480
+
+| Job | Результат | Время | Что доказано |
+|---|---|---|---|
+| `checks` | ✅ success | 1 мин 03 с | инструменты по sha256, lint, unit-тесты, проверка конфигурации |
+| `image` | ✅ success | 1 мин 05 с | сборка, Trivy, политика, публикация: `ghcr.io/mitrcik/mts_devops_task/mts-api@sha256:282c0ca03d56db23e89e063c93632fe5f5edff99e7c063c29b33ea750548e31c` |
+| `e2e` | ✅ success | 13 мин 03 с | `make doctor` 2 с; **`make up` с нуля — 3 мин 23 с** (Ansible: ok=62 changed=28 failed=0); **15 из 15 сценариев passed** — 9 мин 28 с; `make down` 2 с |
+| `deploy` | ⏭ skipped | — | не `main` — доставка на постоянный стенд **не выполнялась** |
+
+Хост runner: Ubuntu 24.04.5 LTS, 4 vCPU, 15 ГБ RAM, Docker 28.0.4. Сценарии (из лога job; отчёты —
+артефакт `e2e-reports`):
+
+| сценарий | результат | время, с |
+|---|---|---|
+| verify | passed | 0 |
+| idempotent-up | passed | 16 |
+| release (v2) | passed | 65 |
+| not-ready | passed | 73 |
+| not-ready-safe | passed | 1 |
+| rollback | passed | 41 |
+| rollback-safe | passed | 1 |
+| interrupted | passed | 26 |
+| no-metrics | passed | 25 |
+| alert | passed | 56 |
+| rotation-chain | passed | 44 |
+| concurrency | passed | 67 |
+| security | passed | 7 |
+| down-up | passed | 146 |
+| verify-again | passed | 0 |
+
+## Итог по runner GitHub
+
+Путь жюри (`git clone` → `cd` → `make up`) проверен трижды на чистом `ubuntu-24.04` без каких-либо
+обходов среды разработки: холодный `make up` — 3 мин 21 с, 3 мин 25 с, 3 мин 23 с. Последний прогон
+(#3) — все 15 приёмочных сценариев passed. Job `deploy` (CD на постоянный стенд) ни разу не
+выполнялся: нет хоста — статус «настроено, не проверено».
