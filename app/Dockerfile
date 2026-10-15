@@ -3,10 +3,10 @@
 #   test    — lint-независимые unit-тесты в той же версии Python, что и runtime;
 #   runtime — минимальный образ: без pip, непривилегированный UID, read-only совместимый.
 #
-# Базовый образ задан минорной версией (3.13, Debian trixie) и собирается с --pull,
+# Базовый образ задан минорными версиями (Python 3.13, Alpine 3.24) и собирается с --pull,
 # чтобы получать патчи безопасности; фактический digest базы фиксируется
-# в provenance сборки (scripts/ci.sh). Решение и компромисс: docs/decisions.md.
-ARG PYTHON_IMAGE=docker.io/library/python:3.13-slim-trixie
+# в provenance сборки (scripts/ci.sh). Решение и компромисс: docs/decisions.md (D7).
+ARG PYTHON_IMAGE=docker.io/library/python:3.13-alpine3.24
 
 FROM ${PYTHON_IMAGE} AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \

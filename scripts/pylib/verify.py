@@ -367,6 +367,16 @@ def status(cfg: Config) -> int:
         print(
             f"    {item.get('at')}  {item.get('decision'):<14} {item.get('release_id')}  {item.get('reason', '')[:90]}"
         )
-    if live:
-        print(f"  резервный слот для ручного возврата: {other_slot(live)} ({slot_release(other_slot(live))})")
+    standby = state.get("standby") or {}
+    if live and standby.get("slot") == other_slot(live):
+        if standby.get("healthy"):
+            print(
+                f"  резервный слот {standby['slot']}: подтверждённый ранее релиз {standby.get('release_id')} "
+                f"— пригоден для ручного возврата ({slot_release(standby['slot'])})"
+            )
+        else:
+            print(
+                f"  резервный слот {standby['slot']}: релиз {standby.get('release_id')} НЕ прошёл проверки "
+                "— не использовать для ручного возврата; следующий релиз перезапишет слот"
+            )
     return 0

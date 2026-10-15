@@ -63,7 +63,7 @@ stage_lint() {
     scripts/*.sh scripts/remote/*.sh
   # секреты и ключи не должны попадать в Git
   "${HELPER[@]}" check-tracked-files "${ROOT_DIR}"
-  trivy fs --quiet --cache-dir "${LOCAL_DIR}/cache/trivy" --scanners secret --exit-code 1 \
+  trivy fs --quiet --skip-version-check --disable-telemetry --cache-dir "${LOCAL_DIR}/cache/trivy" --scanners secret --exit-code 1 \
     --skip-dirs .local --skip-dirs .git "${ROOT_DIR}"
   stage_end
 }
@@ -141,10 +141,10 @@ stage_scan() {
   [[ "$(docker image inspect --format '{{.Id}}' "${IMAGE}")" == "${image_id}" ]] \
     || die "тег ${IMAGE} указывает не на собранный образ — сканирование отменено"
   # Сканер и база обязательны: ошибка Trivy (нет базы, нет сети) = провал стадии, а не «чисто».
-  trivy image --quiet --cache-dir "${LOCAL_DIR}/cache/trivy" \
+  trivy image --quiet --skip-version-check --disable-telemetry --cache-dir "${LOCAL_DIR}/cache/trivy" \
     --scanners vuln,secret --ignorefile "${ROOT_DIR}/.trivyignore.yaml" \
     --format json --output "${ART}/trivy.json" --exit-code 0 "${IMAGE}"
-  trivy convert --format table --output "${ART}/trivy.txt" "${ART}/trivy.json"
+  trivy convert --scanners vuln,secret --format table --output "${ART}/trivy.txt" "${ART}/trivy.json"
   trivy version --cache-dir "${LOCAL_DIR}/cache/trivy" --format json > "${ART}/trivy-version.json"
   # Политика: блокируют HIGH/CRITICAL с доступным исправлением и любые найденные секреты.
   "${HELPER[@]}" trivy-policy "${ART}/trivy.json" "${ART}/trivy-version.json" "${ART}/trivy-summary.json"

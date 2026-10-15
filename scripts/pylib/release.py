@@ -139,6 +139,12 @@ class ReleaseController:
         self.report = Report("release", self.release_id, cfg.reports_dir)
         self.lock: StandLock | None = None
         self.token = ""
+        self._t0 = time.time()
+        self._marks: dict[str, float] = {}
+
+    def _mark(self, name: str, **fields) -> None:
+        self._marks[name] = round(time.time() - self._t0, 1)
+        self.report.event(name, **fields)
 
     # ------------------------------------------------------------------ public
     def run(self) -> str:
@@ -205,10 +211,12 @@ class ReleaseController:
         self.store.save(state)
 
         # 3. развёртывание в неактивный слот
+        self._mark("deploy_started", slot=cand)
         good, detail = self._deploy_candidate(cand)
         self.report.check("candidate_ready", "passed" if good else "failed", **detail)
         if not good:
             return self._reject(state, cand, "candidate_not_ready", detail.get("summary"))
+        self._mark("candidate_ready")
         self.lock.check()
 
         # 4. preview каждого pod кандидата напрямую
@@ -216,12 +224,14 @@ class ReleaseController:
         self.report.check("preview", "passed" if good else "failed", **detail)
         if not good:
             return self._reject(state, cand, "preview_failed", detail.get("summary"))
+        self._mark("preview_passed", probes=len(detail.get("probes", [])))
 
         # 5. наблюдаемость обязана видеть кандидата до переключения
         good, detail = self._metrics_precheck(cand, pods)
         self.report.check("metrics_precheck", "passed" if good else "failed", **detail)
         if not good:
             return self._reject(state, cand, "metrics_unavailable", detail.get("summary"))
+        self._mark("metrics_precheck_passed")
         self.lock.check()
 
         # 6-7. переключение и post-deploy окно под пользовательской нагрузкой
@@ -233,7 +243,7 @@ class ReleaseController:
             switch_started = time.time()
             self._switch(cand)
             self.report.set("switched_at", iso(utcnow()))
-            self.report.event("traffic_switched", to=cand, previous=prev_slot)
+            self._mark("traffic_switched", to=cand, previous=prev_slot)
             state["phase"] = "observing"
             self.store.save(state)
 
@@ -246,24 +256,33 @@ class ReleaseController:
                 )
                 metrics_res = GateResult(False, ["не оценивалось"], {})
             else:
-                self.report.event("cutover_observed", seconds_after_switch=round(cutover - switch_started, 2))
+                self._mark("cutover_observed", seconds_after_switch=round(cutover - switch_started, 2))
                 http_res = self._observe_window(load, cutover)
-                metrics_res = self._metrics_gate(cand, pods, cutover, wait=http_res.passed)
+                # при провале HTTP-gate метрики не ждём: сначала возврат трафика, доказательства — после
+                metrics_res = (
+                    self._metrics_gate(cand, pods, cutover)
+                    if http_res.passed
+                    else GateResult(False, ["не оценивалось: HTTP-gate уже провален"], {})
+                )
             switch_window = load.snapshot(since=switch_started - 2, until=(cutover or time.time()) + 2)
             self.report.check(
                 "switch_impact",
                 "measured",
                 requests=len(switch_window),
                 failed=sum(1 for s in switch_window if not s.ok and s.release_id != self.release_id),
-                note="ошибки старого релиза в момент переключения (ошибки кандидата учитывает gate)",
+                note=(
+                    "первое развёртывание: до переключения маршрута к API не было"
+                    if prev_slot is None
+                    else "ошибки прежнего релиза в окне ±2 с вокруг переключения (ошибки кандидата учитывает gate)"
+                ),
             )
             self.report.check("post_deploy_http", "passed" if http_res.passed else "failed", **http_res.as_dict())
             self.report.check("metrics_gate", "passed" if metrics_res.passed else "failed", **metrics_res.as_dict())
 
             if http_res.passed and metrics_res.passed:
                 return self._promote(state, cand, prev_info)
-            reasons = http_res.reasons + [r for r in metrics_res.reasons if r != "не оценивалось"]
-            return self._handle_failure(state, load, cand, prev_slot, prev_info, "; ".join(reasons))
+            reasons = http_res.reasons if not http_res.passed else metrics_res.reasons
+            return self._handle_failure(state, load, cand, prev_slot, prev_info, "; ".join(reasons), pods, cutover)
         finally:
             load.stop()
 
@@ -487,7 +506,7 @@ class ReleaseController:
         )
         return res
 
-    def _metrics_gate(self, cand: str, pods: list[str], start: float, wait: bool) -> GateResult:
+    def _metrics_gate(self, cand: str, pods: list[str], start: float, wait: bool = True) -> GateResult:
         if wait:
             time.sleep(self.scrape_wait)  # последние запросы окна должны попасть в scrape
         at = time.time()
@@ -554,7 +573,15 @@ class ReleaseController:
         return self._finish("rejected", f"{reason}: {detail}")
 
     def _handle_failure(
-        self, state: dict, load: LoadGenerator, cand: str, prev_slot: str | None, prev_info: dict | None, reasons: str
+        self,
+        state: dict,
+        load: LoadGenerator,
+        cand: str,
+        prev_slot: str | None,
+        prev_info: dict | None,
+        reasons: str,
+        pods: list[str] | None = None,
+        cutover: float | None = None,
     ) -> str:
         if not prev_slot or not prev_info:
             state["active"] = {
@@ -574,15 +601,26 @@ class ReleaseController:
         self.store.save(state)
         rb_started = time.time()
         self._switch(prev_slot)
-        self.report.event("traffic_rolled_back", to=prev_slot)
+        self._mark("traffic_rolled_back", to=prev_slot)
         back = self._wait_cutover(load, prev_info.get("release_id", ""), since=rb_started)
         verification: dict = {"cutback_observed": back is not None}
         recovered = False
         if back is not None:
+            self._mark("cutback_observed", seconds_after_rollback=round(back - rb_started, 2))
             time.sleep(10)
             rec = summarize_http(load.snapshot(since=back), prev_info.get("release_id"))
             verification.update(rec)
             recovered = rec["requests"] >= 20 and rec["failed"] == 0 and (rec.get("candidate_share") or 0) >= 0.99
+        # Доказательства из Prometheus снимаются уже после возврата трафика (не задерживают его):
+        # видны ли ошибки кандидата в метриках, независимо от собственных HTTP-проб контроллера.
+        if pods and cutover:
+            evidence = self._metrics_gate(cand, pods, cutover, wait=False)
+            self.report.check(
+                "metrics_evidence_after_rollback",
+                "recorded",
+                note="метрики кандидата за окно наблюдения; на решение не влияют",
+                **evidence.details,
+            )
         self.report.set(
             "rollback",
             {
@@ -619,6 +657,8 @@ class ReleaseController:
         self.store.save(state)
 
     def _finish(self, decision: str, reason: str | None) -> str:
+        self._marks["total"] = round(time.time() - self._t0, 1)
+        self.report.set("durations", {"seconds_from_start": self._marks})
         json_path, md_path = self.report.finish(decision, reason)
         log(f"отчёт: {md_path.relative_to(ROOT)} ({json_path.name})")
         return decision
