@@ -15,6 +15,7 @@ source "$(dirname "$0")/lib.sh"
 load_env
 # Весь вывод стадий — в stderr; в stdout только путь к provenance (его читает release.sh).
 exec 3>&1 1>&2
+cd "${ROOT_DIR}"
 
 VERSION="${VERSION:-${INITIAL_VERSION:-v1}}"
 FAULT="${FAULT:-none}"
