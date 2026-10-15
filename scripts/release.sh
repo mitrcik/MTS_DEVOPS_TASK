@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # Полный путь релиза: стадии CI (scripts/ci.sh) → blue-green релиз проверенного digest.
-#   scripts/release.sh --version v2 [--fault MODE] [--expect DECISION] [--if-needed]
-# --if-needed  ничего не делать, если эта версия этого коммита уже активна и здорова
+#   scripts/release.sh --version v2 [--fault MODE] [--expect DECISION] [--if-absent]
+# --if-absent  (make up) ничего не делать, если на стенде уже есть здоровый активный релиз
+#              любой версии: повторный make up не перевыпускает и не откатывает рабочую версию
 # CI_STAGES    переопределить набор стадий (по умолчанию все; пропуск фиксируется в provenance)
 # shellcheck source=scripts/lib.sh
 source "$(dirname "$0")/lib.sh"
 load_env
 
-version="" fault="none" expect="" if_needed=false
+version="" fault="none" expect="" if_absent=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version) version="$2"; shift 2 ;;
     --fault) fault="$2"; shift 2 ;;
     --expect) expect="$2"; shift 2 ;;
-    --if-needed) if_needed=true; shift ;;
+    --if-absent) if_absent=true; shift ;;
     *) die "неизвестный аргумент $1" ;;
   esac
 done
@@ -21,10 +22,10 @@ done
 PY="$(venv_python)"
 BGCTL=("${PY}" "${ROOT_DIR}/scripts/bgctl.py")
 
-if ${if_needed}; then
-  sha="$(git_sha)"; [[ "$(git_dirty)" == "true" ]] && sha="${sha}-dirty"
-  if "${BGCTL[@]}" active --match-version "${version}" --match-git-sha "${sha}" >/dev/null 2>&1; then
-    ok "версия ${version} (${sha}) уже активна и здорова — пересборка и релиз не нужны"
+if ${if_absent}; then
+  if active_json="$("${BGCTL[@]}" active 2>/dev/null)"; then
+    ok "на стенде уже есть здоровый активный релиз — make up его не меняет: ${active_json:0:160}…"
+    log "выпустить текущий код: make release VERSION=<версия>"
     exit 0
   fi
 fi

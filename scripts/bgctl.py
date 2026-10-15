@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -233,6 +234,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     handler = globals()["cmd_" + args.command.replace("-", "_").replace("rotate_secret", "rotate")]
     cfg = Config()
+
+    def on_sigterm(signum, frame):  # SIGTERM (kill, остановка CI) обрабатывается как Ctrl+C:
+        raise KeyboardInterrupt  # блокировка освобождается, фаза остаётся для восстановления
+
+    signal.signal(signal.SIGTERM, on_sigterm)
     try:
         return handler(cfg, args)
     except sec.SecretsError as exc:
