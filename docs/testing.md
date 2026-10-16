@@ -11,6 +11,7 @@
 | Правила Prometheus (6 групп) | pending→firing→resolved пробы; алерт «нет данных»; доля 5xx с порогом трафика; нулевой трафик не даёт ложного алерта; p95 по histogram | `observability/tests/rules.test.yml` | `scripts/ci.sh validate` (`promtool test rules`) |
 | Статические проверки | ruff, yamllint, shellcheck, поиск секретов в Git и Trivy fs, `helm lint --strict` + JSON-схемы (отказ на тег вместо digest), `promtool check config`, `amtool check-config`, проверка дашборда и исключений Trivy | `scripts/ci.sh lint validate` | `make ci` |
 | Интеграция / приёмка (15 сценариев) | реальный стенд: см. ниже | `scripts/e2e.sh` | `make test-e2e` |
+| Совместимость с ВМ | `make prereqs` → `make doctor` → `make up` → 15 сценариев на Ubuntu 22.04 x86_64 и 24.04 aarch64 (чистые ВМ GitHub) и в окружениях Ubuntu 22.04/24.04/26.04; закрепления sha256 всех CLI против официальных checksum | `.github/workflows/compat.yml` | вручную (workflow_dispatch), еженедельно и при изменении предпосылок; итоги — `docs/validation/compat.md` |
 
 ## Приёмочные сценарии (`make test-e2e`)
 
@@ -41,7 +42,9 @@
 
 ## Как воспроизвести на своей машине
 
+Чистая ВМ с Ubuntu — сначала `make prereqs` (пошагово: `docs/vm-guide.md`).
+
 ```bash
-make up && make test-e2e          # ~20–25 минут; E2E_REBUILD=0 — без финального down/up
+make up && make test-e2e          # ~15–17 минут вместе с make up; E2E_REBUILD=0 — без финального down/up
 E2E_ONLY="release rollback" make test-e2e   # только выбранные сценарии
 ```

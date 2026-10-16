@@ -116,11 +116,11 @@ flowchart LR
 
 | Инструмент | Версия | Источник установки и проверка |
 |---|---|---|
-| Ubuntu (хост) | 24.04 LTS x86_64 | основной поддерживаемый профиль |
-| Docker Engine + buildx | ≥ 24 (проверено 29.8.2 и на runner GitHub) | Docker CE или `docker.io` + `docker-buildx` из Ubuntu |
-| Python (хост) | ≥ 3.12 | `python3`, `python3-venv` из Ubuntu |
+| Ubuntu (хост) | 22.04 / 24.04 / 26.04 LTS, x86_64 или aarch64 | основной профиль — 24.04 x86_64; матрица проверок — [`docs/vm-guide.md`](docs/vm-guide.md) §8 |
+| Docker Engine + buildx | ≥ 24 (проверены 29.8.2, Docker CE на runner GitHub и `docker.io` 29.1.3 из Ubuntu) | `make prereqs`: `docker.io` + `docker-buildx` из Ubuntu; установленный Docker CE не трогается |
+| Python (хост) | ≥ 3.12 (проверены 3.12, 3.13, 3.14) | `python3-venv` из Ubuntu; на 22.04 — `python3.12` из PPA deadsnakes (`make prereqs`) |
 | ansible-core / yamllint / ruff | 2.21.4 / 1.38.0 / 0.16.9 | PyPI, `pip --require-hashes` (`infra/tooling/requirements.lock`) |
-| k3d | 5.9.0 | GitHub Releases, sha256 из `checksums.txt` |
+| k3d | 5.9.0 | GitHub Releases, sha256 из `checksums.txt` (amd64 и arm64 — для всех CLI ниже) |
 | k3s | v1.36.5+k3s1 | образ `rancher/k3s` (Docker Hub) |
 | kubectl | 1.36.5 | dl.k8s.io, `.sha256` |
 | Helm | 4.3.0 | get.helm.sh, `.sha256sum` |
@@ -141,16 +141,20 @@ flowchart LR
 
 ### Предпосылки хоста (однократно, требуют sudo)
 
+На чистой Ubuntu 22.04 / 24.04 / 26.04 (в том числе на виртуальной машине — пошагово в
+[`docs/vm-guide.md`](docs/vm-guide.md)):
+
 ```bash
-sudo apt-get update
-sudo apt-get install -y git make curl python3-venv docker.io docker-buildx   # или Docker CE
-sudo usermod -aG docker "$USER" && newgrp docker     # доступ к Docker = привилегированный доступ к хосту
+sudo apt-get update && sudo apt-get install -y git make
+git clone https://github.com/mitrcik/MTS_DEVOPS_TASK.git mts-devops && cd mts-devops
+make prereqs        # Docker Engine + buildx, Python >= 3.12 с venv, curl, лимиты inotify
+newgrp docker       # или перелогиниться: доступ к Docker = привилегированный доступ к хосту
 ```
 
 Ресурсы: цель проекта 4 vCPU / 8 ГБ RAM (фактически стенд занимает ≈ 1,6 ГиБ RAM в покое),
-~8 ГБ диска под образы, интернет до Docker Hub, ghcr.io, GitHub Releases, dl.k8s.io, get.helm.sh,
-PyPI, mirror.gcr.io. Свободные порты на `127.0.0.1`: 8080 (ingress), 6550 (Kubernetes API), 5001 (registry).
-Правка `/etc/hosts`, домен, публичный IP и GitHub-токен **не нужны**.
+40 ГБ диска у ВМ (проекту нужно ≈ 10 ГБ), интернет до Docker Hub, ghcr.io, GitHub Releases, dl.k8s.io,
+get.helm.sh, PyPI, mirror.gcr.io. Свободные порты на `127.0.0.1`: 8080 (ingress), 6550 (Kubernetes API),
+5001 (registry). Правка `/etc/hosts`, домен, публичный IP и GitHub-токен **не нужны**.
 
 ### Три команды
 
@@ -189,6 +193,7 @@ make up
 
 | Команда | Что делает |
 |---|---|
+| `make prereqs` | однократно на чистой Ubuntu: Docker + buildx, Python, git, make (через sudo) |
 | `make up` / `make doctor` | подготовка и запуск / диагностика без изменений |
 | `make ci` | все стадии CI локально (lint, test, validate, build, scan, push) |
 | `make verify` / `make verify-security` | проверка стенда / мер безопасности |
@@ -198,7 +203,7 @@ make up
 | `make rotate-secret` | ротация API-токена |
 | `make recover` | восстановление после прерванного релиза |
 | `make status` / `make credentials` | состояние слотов и история / учебные учётные данные |
-| `make test-e2e` | 15 приёмочных сценариев (~20 мин) |
+| `make test-e2e` | 15 приёмочных сценариев (~11–13 мин) |
 | `make down` | удалить только кластер, registry и образы этого проекта; секреты и ключ сохраняются |
 | `make down PURGE=1 CONFIRM=yes` | дополнительно удалить SOPS-источник, age-ключ, отчёты (необратимо) |
 

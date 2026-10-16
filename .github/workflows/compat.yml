@@ -25,9 +25,10 @@ on:
 
 permissions: {}
 
+# тяжёлая матрица: новый прогон ждёт завершения текущего, а не отменяет его
 concurrency:
   group: compat-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   pins:
@@ -106,13 +107,17 @@ jobs:
           UBUNTU: ${{ matrix.ubuntu }}
         # --network host: порты стенда на 127.0.0.1 runner'а видны из контейнера;
         # одинаковый путь к репозиторию: k3d монтирует файлы .local по путям хоста.
+        # В контейнере root, а checkout принадлежит пользователю runner: safe.directory для git
+        # и возврат владельца .local, чтобы отчёты можно было загрузить артефактом.
         run: |
           docker run --rm --network host \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "${PWD}:${PWD}" -w "${PWD}" -e HOME=/root \
+            -v "${PWD}:${PWD}" -w "${PWD}" -e HOME=/root -e OWNER="$(id -u):$(id -g)" \
             "docker.io/library/ubuntu:${UBUNTU}" \
             bash -euo pipefail -c '
-              apt-get update -q && apt-get install -y -q --no-install-recommends make
+              trap "chown -R \"\${OWNER}\" .local 2>/dev/null || true" EXIT
+              apt-get update -q && apt-get install -y -q --no-install-recommends make git
+              git config --global --add safe.directory "${PWD}"
               make prereqs
               make doctor
               make up

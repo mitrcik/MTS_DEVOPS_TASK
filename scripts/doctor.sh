@@ -35,6 +35,13 @@ for c in git make curl tar sha256sum python3 docker; do
   if command -v "${c}" >/dev/null 2>&1; then pass "команда ${c}: $(command -v "${c}")"
   else fail "нет команды ${c} — на Ubuntu выполните: make prereqs (или scripts/install-prereqs.sh)"; fi
 done
+if command -v git >/dev/null 2>&1; then
+  if git -C "${ROOT_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
+    pass "git-клон проекта читается ($(git -C "${ROOT_DIR}" rev-parse --short=12 HEAD))"
+  else
+    fail "git не читает ${ROOT_DIR}: это не git clone (архив?) или make запущен не владельцем каталога (sudo → «dubious ownership»); запускайте make без sudo от владельца клона"
+  fi
+fi
 if [[ -x "${LOCAL_DIR}/venv/bin/python" ]]; then
   pass "Python в .local/venv: $("${LOCAL_DIR}/venv/bin/python" -c 'import platform; print(platform.python_version())')"
 elif py="$(find_python)"; then
@@ -62,7 +69,7 @@ if command -v docker >/dev/null 2>&1; then
       fail "нет плагина buildx (нужен BuildKit для RUN --mount): sudo apt-get install -y docker-buildx или Docker CE"
     fi
     if [[ "${cgv}" == "1" ]]; then
-      warns "cgroup v1: kubelet >= 1.35 по умолчанию отказывается работать; будет добавлен kubelet-флаг fail-cgroupv1=false (Ubuntu 24.04 использует cgroup v2)"
+      warns "cgroup v1: kubelet >= 1.35 по умолчанию отказывается работать; будет добавлен kubelet-флаг fail-cgroupv1=false (Ubuntu 22.04+ по умолчанию на cgroup v2)"
     else
       pass "cgroup v${cgv}"
     fi

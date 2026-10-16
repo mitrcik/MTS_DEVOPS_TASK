@@ -135,10 +135,26 @@ Word «Конкурс кейсов DevOps 2.1» (кейс 1), расшифров
 
 ## D13. Что сознательно не делалось
 
-- Профиль ВМ (Terraform/libvirt или OpenStack): нет KVM/OpenStack для проверки — описан как развитие,
-  фиктивных модулей нет.
+- Автоматическое создание ВМ (Terraform/libvirt или OpenStack, cloud-init): нет KVM/OpenStack для
+  проверки — фиктивных модулей нет. Подготовка уже созданной ВМ автоматизирована (D16).
 - Canary, service mesh, Loki, трассировки, Chaos Mesh, Telegram, runtime-LLM — вне кейса 1.
 - Compose вместо Kubernetes [12:36] не выбран: доставка в кластер и переключение релизов — предмет кейса.
+
+## D16. Запуск на ВМ пользователя: Ubuntu 22.04–26.04, x86_64 и arm64
+
+- **Решение.** `make prereqs` (`scripts/install-prereqs.sh`) готовит чистую Ubuntu: `docker.io` и
+  `docker-buildx` из архивов Ubuntu (одна и та же версия 29.1.3 в 22.04, 24.04 и 26.04 — без сторонних
+  репозиториев и ключей), Python ≥ 3.12 с venv (на 22.04 — `python3.12` из PPA deadsnakes, ключ
+  сверяется по отпечатку), лимиты inotify, группа `docker`. Уже установленный Docker CE не трогается.
+- **arm64.** Все CLI закреплены для amd64 и arm64 с sha256 из официальных файлов checksum
+  (`infra/tools/tools.yml`, проверка `cihelper check-tool-pins` в `compat.yml`); образы стенда
+  мультиархитектурные, lock-файлы Python содержат хеши колёс aarch64 (проверено `pip download`).
+- **Проверка.** Workflow `compat.yml`: чистые ВМ GitHub (Ubuntu 22.04 x86_64, 24.04 aarch64) и
+  окружение Ubuntu 22.04/24.04/26.04 в контейнере — `make prereqs` → `make up` → 15 сценариев.
+- **Почему не Docker CE из download.docker.com.** Пакеты Ubuntu не требуют стороннего ключа и
+  репозитория и одинаково доступны во всех трёх LTS; версии ≥ 24 достаточно (BuildKit secrets).
+- **Безопасность.** Порты стенда остаются на loopback ВМ; UI с компьютера пользователя — через
+  SSH-туннель, а не открытием портов (`docs/vm-guide.md` §5).
 
 ## D14. Правило выбора версий
 

@@ -11,7 +11,7 @@
 | Источник / требование | Реализация | Путь | Проверка | Статус |
 |---|---|---|---|---|
 | W1: Terraform/Ansible | Ansible оркестрирует весь жизненный цикл стенда; Terraform не используется (обоснование D2) | `infra/ansible/` | `make up` | ✅ |
-| W1: развернуть ВМ/инстанс (VirtualBox/KVM/облако), netplan, cloud-init | **Заменено** контейнерным узлом k3d по разрешению ВКС [24:27] («k3d с одной нодой принимается»). ВМ не создаётся | `docs/decisions.md` D1, D13 | — | ❌ (осознанная замена) |
+| W1: развернуть ВМ/инстанс (VirtualBox/KVM/облако), netplan, cloud-init | Узел кластера — контейнер k3d по разрешению ВКС [24:27] («k3d с одной нодой принимается»). Готовая ВМ с Ubuntu подготавливается одной командой `make prereqs` (`docs/vm-guide.md`); **автоматическое создание ВМ (Terraform/cloud-init/netplan) не реализовано** | `scripts/install-prereqs.sh`, `docs/vm-guide.md`, `docs/decisions.md` D1, D13, D16 | чистые ВМ GitHub: Ubuntu 22.04 x86_64, 24.04 x86_64 и aarch64 (`docs/validation/compat.md`) | ✅ подготовка ВМ · ❌ создание ВМ (осознанная замена) |
 | W1: кластер k3s/minikube/Managed | k3s v1.36.5 в k3d 5.9.0, версионированный шаблон | `infra/ansible/roles/cluster/templates/k3d-cluster.yaml.j2` | `make up`; `make status` | ✅ |
 | W1: настройка сети | порты только на loopback, Traefik ingress, registry-зеркало в узле, NetworkPolicy | шаблон k3d, `charts/platform`, `charts/app` | `make verify-security` | ✅ |
 | ВКС [02:26, 24:20]: Ansible, вызывающий helm upgrade, допустим | роли `platform`, `observability` | `infra/ansible/roles/*` | `make up` | ✅ |
@@ -75,5 +75,5 @@
 | W: «≤ 3 команды» | `git clone`, `cd`, `make up` | README | ✅ (в GitHub Actions на чистом runner) |
 | W/ВКС [37:47]: README по шаблону | 12 разделов шаблона + «что сделано → где → как проверить» | `README.md` | ✅ |
 | W/ВКС [07:23]: видео ≤ 5 мин | сценарий и кадры | `docs/demo-script.md` | ❌ запись — за командой |
-| ВКС [37:47]: состав команды | поля для заполнения | README | 🔧 заполняет команда |
-| ВКС [37:47]: лицензия (MIT — пример ведущего, не требование) | выбор за командой | README | 🔧 не выбрана |
+| ВКС [37:47]: состав команды | Кутузов Дмитрий Сергеевич, Рожков Иван Валерьевич, Джумабаев Али | README §4 | ✅ (роли — по желанию участников) |
+| ВКС [37:47]: лицензия (MIT — пример ведущего, не требование) | MIT | `LICENSE`, README §12 | ✅ |
