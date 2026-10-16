@@ -14,13 +14,14 @@
 | Диск | 40 ГБ | образы, кэш сборки, база Trivy и данные кластера занимают ≈ 10 ГБ |
 | Сеть | доступ в интернет (NAT достаточно) | входящие порты не нужны: все адреса стенда — только `127.0.0.1` внутри ВМ |
 
-Нужен доступ в интернет (при белом списке хостов откройте все): архивы Ubuntu (archive.ubuntu.com,
-security.ubuntu.com; для arm64 — ports.ubuntu.com) или зеркало; Docker Hub (registry-1.docker.io,
-auth.docker.io, production.cloudflare.docker.com); ghcr.io и pkg-containers.githubusercontent.com;
-github.com и release-assets.githubusercontent.com (загрузки Releases); dl.k8s.io; get.helm.sh;
-pypi.org и files.pythonhosted.org; mirror.gcr.io; на Ubuntu 22.04 ещё keyserver.ubuntu.com и
-ppa.launchpadcontent.net. `make doctor` проверяет основные источники (с переходом по
-перенаправлениям), но не каждый хост из списка.
+Нужен доступ в интернет. Основные источники: архивы Ubuntu (archive.ubuntu.com, security.ubuntu.com;
+для arm64 — ports.ubuntu.com) или зеркало; Docker Hub (registry-1.docker.io, auth.docker.io);
+ghcr.io; github.com (Releases); dl.k8s.io; get.helm.sh; pypi.org и files.pythonhosted.org;
+mirror.gcr.io; на Ubuntu 22.04 ещё keyserver.ubuntu.com и ppa.launchpadcontent.net. Загрузки
+перенаправляются на CDN (release-assets.githubusercontent.com, pkg-containers.githubusercontent.com,
+production.cloudflare.docker.com, production.cloudfront.docker.com и др.) — в сети с белым списком
+хостов откройте и их (для Docker Hub — по странице Docker «Allowlist»). `make doctor` проверяет
+основные источники, но не каждый CDN-хост.
 
 ## 2. Подготовка ВМ (однократно, ~2–5 минут)
 

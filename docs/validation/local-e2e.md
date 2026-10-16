@@ -11,31 +11,32 @@
   (`K3D_EXTRA_ARGS`), закрыты get.helm.sh и блобы ghcr.io (helm 4.3.0 из `alpine/helm:4.3.0`,
   `K3D_IMAGE_TOOLS=rancher/k3d-tools:5.3.0`). Путь жюри без этих обходов проверен в GitHub Actions
   (`github-actions.md`).
-- Финальный прогон выполнен на чистом закоммиченном дереве: Git SHA `e6bf26c83d03` без пометки `-dirty`.
+- Финальный прогон выполнен на чистом закоммиченном дереве: Git SHA `a6703daae18c` без пометки `-dirty`.
 
-## Финальный приёмочный прогон `make test-e2e` — 2026-10-16 00:28–00:38 UTC
+## Финальный приёмочный прогон `make test-e2e` — 2026-10-16 01:45–01:57 UTC
 
-Команда: `make test-e2e`, код возврата 0, общее время 10 мин 12 с, commit `e6bf26c`. Сводка —
-`reports/e2e-summary-20261016T002804Z.md`. Предыдущие полные прогоны (commit `697dc89`, 2026-10-15
-22:47 и 23:11 UTC) тоже прошли 15/15.
+Команда: `make up && make test-e2e`, код возврата 0, сценарии — 11 мин 15 с, commit `a6703da`
+(после независимой перепроверки: сценарии выполняются со строгим `set -e`, поэтому упавший
+промежуточный шаг теперь тоже валит сценарий). Сводка — `reports/e2e-summary-20261016T014549Z.md`.
+Предыдущие полные прогоны (`697dc89` — дважды 2026-10-15, `e6bf26c` — 2026-10-16 00:28) тоже прошли 15/15.
 
 | сценарий | результат | время, с | доказательство |
 |---|---|---|---|
 | verify | passed | 1 | 14/14 проверок |
-| idempotent-up | passed | 20 | отпечатки ключа, SOPS-файла и активного релиза не изменились |
-| release (v2) | passed | 72 | `reports/release-v2-20261016t002840z.md` |
-| not-ready | passed | 77 | `reports/release-v3-notready-20261016t002952z.md` |
+| idempotent-up | passed | 23 | отпечатки ключа, SOPS-файла и активного релиза не изменились |
+| release (v2) | passed | 85 | `reports/release-v2-20261016t014642z.md` |
+| not-ready | passed | 80 | `reports/release-v3-notready-20261016t014756z.md` |
 | not-ready-safe | passed | 1 | активна v2 |
-| rollback | passed | 43 | `reports/release-v3-faulty-20261016t003110z.md` (+ `.json`) |
+| rollback | passed | 49 | `reports/release-v3-faulty-20261016t014916z.md` (+ `.json`) |
 | rollback-safe | passed | 1 | активна v2 |
-| interrupted | passed | 22 | `reports/recovery-recover-20261016t003158z.md` |
-| no-metrics | passed | 33 | `reports/release-v3-nometrics-20261016t003219z.md` |
-| alert | passed | 43 | `reports/alert-demo-20261016t003234z.md` |
-| rotation-chain | passed | 51 | `reports/rotation-20261016t003317z.md`, затем `reports/release-v3-faulty-after-rotation-20261016t003336z.md` |
-| concurrency | passed | 75 | `reports/release-v4-20261016t003423z.md` (promoted); `reports/release-v4-competing-20261016t003428z.md`, `reports/rotation-20261016t003423z.md` (оба `blocked`) |
-| security | passed | 8 | 17/17 проверок |
-| down-up | passed | 165 | `make down` + `make up` (образы в кэше Docker); `reports/release-v1-20261016t003719z.md` |
-| verify-again | passed | 0 | 14/14 |
+| interrupted | passed | 24 | `reports/recovery-recover-20261016t015008z.md`: `traffic_restored_to_previous`, ingress подтвердил v2 |
+| no-metrics | passed | 29 | `reports/release-v3-nometrics-20261016t015031z.md` |
+| alert | passed | 56 | `reports/alert-demo-20261016t015043z.md` |
+| rotation-chain | passed | 49 | `reports/rotation-20261016t015138z.md`, затем `reports/release-v3-faulty-after-rotation-20261016t015159z.md` |
+| concurrency | passed | 73 | `reports/release-v4-20261016t015244z.md` (promoted); `reports/release-v4-competing-20261016t015250z.md`, `reports/rotation-20261016t015245z.md` (оба `blocked`) |
+| security | passed | 11 | 17/17 проверок |
+| down-up | passed | 192 | `make down` + `make up` (образы в кэше Docker); `reports/release-v1-20261016t015603z.md` |
+| verify-again | passed | 1 | 14/14 |
 
 ## Маршрут жюри вручную и «перезагрузка» — 2026-10-16, commit `e6bf26c`
 
@@ -62,18 +63,18 @@
 | Холодный `make up` на чистом runner GitHub | 3 мин 17 с – 3 мин 40 с (Ubuntu 22.04/24.04, x86_64/arm64) | `github-actions.md`, `compat.md` |
 | `make up` после `make down` (образы в кэше) | 160–170 с | лог `make up`, сценарий down-up |
 | Повторный `make up` на работающем стенде | 20 с, изменений нет | idempotent-up |
-| Релиз с полным CI (`make release`) | ≈ 72 с, из них решение контроллера ≈ 57 с | release |
+| Релиз с полным CI (`make release`) | 72–85 с, из них решение контроллера 56–57 с | release |
 | Развёртывание → готовность кандидата | 6–7 с | `durations` отчётов |
 | Переключение → новый релиз на ingress | 0,6–0,7 с | `cutover_observed` |
-| Окно post-deploy (успешный релиз) | 30 с, 245–246 запросов, 0 ошибок, p95 ≈ 6 мс | `post_deploy_http` |
+| Окно post-deploy (успешный релиз) | 30 с, 245–246 запросов, 0 ошибок, p95 6–7 мс | `post_deploy_http` |
 | Ошибки прежнего релиза в окне ±2 с вокруг переключения | 0 из 37 запросов | `switch_impact` |
 | Обнаружение дефекта после переключения | ранняя остановка: 21–22 запроса, 32–33% HTTP 500 | `post_deploy_http` откатов |
-| Возврат трафика → прежний релиз на ingress | 0,4 с | `rollback.seconds_to_cutback` |
-| Проверка восстановления после отката | 88 запросов, 0 ошибок | `rollback.verification` |
-| Полное время неудачного релиза до `rolled_back` | 27,6 с от старта контроллера | `durations.total` |
+| Возврат трафика → прежний релиз на ingress | 0,4–0,5 с | `rollback.seconds_to_cutback` |
+| Проверка восстановления после отката | 85–88 запросов, 0 ошибок | `rollback.verification` |
+| Полное время неудачного релиза до `rolled_back` | 28–32 с от старта контроллера | `durations.total` |
 | Отклонение неготового кандидата | 62 с (progressDeadlineSeconds 60 с) | not-ready |
 | Отклонение без метрик | 9 с от старта контроллера | no-metrics |
-| Алерт: сбой → pending → firing → Alertmanager → восстановление → resolved | 0 → 2 с → 32 с → 35 с → 40 с → 43 с | alert-demo |
+| Алерт: сбой → pending → firing → Alertmanager → восстановление → resolved | 0 → 2–10 с → 32–39 с → 35–41 с → 40–46 с → 43–55 с | alert-demo (два последних прогона) |
 | Ротация с перекрытием (4 pod, 2 слота) | 2–3 с | rotation |
 | Пиковая память хоста за `make up` + 15 сценариев | 2,2 ГиБ (`free`, вместе с ≈ 0,8 ГиБ фоновой нагрузки среды) | `compat.md`, прогон Ubuntu 26.04 |
 | Место на диске после полного прогона | ≈ 9 ГБ: образы 2,4 ГБ, тома k3d 3,3 ГБ, кэш сборки 0,7 ГБ, `.local` 2,4 ГБ | `docker system df`, `du` |

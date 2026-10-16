@@ -1,148 +1,148 @@
 {
   "kind": "release",
-  "id": "v3-faulty-20261016t003110z",
+  "id": "v3-faulty-20261016t014916z",
   "decision": "rolled_back",
   "reason": "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах",
-  "started_at": "2026-10-16T00:31:10.487Z",
-  "finished_at": "2026-10-16T00:31:38.110Z",
+  "started_at": "2026-10-16T01:49:16.915Z",
+  "finished_at": "2026-10-16T01:49:48.369Z",
   "timeline": [
     {
-      "at": "2026-10-16T00:31:11.031Z",
+      "at": "2026-10-16T01:49:17.516Z",
       "event": "deploy_started",
-      "slot": "green"
+      "slot": "blue"
     },
     {
-      "at": "2026-10-16T00:31:17.316Z",
+      "at": "2026-10-16T01:49:24.495Z",
       "event": "candidate_ready"
     },
     {
-      "at": "2026-10-16T00:31:17.998Z",
+      "at": "2026-10-16T01:49:25.399Z",
       "event": "preview_passed",
       "probes": 16
     },
     {
-      "at": "2026-10-16T00:31:21.071Z",
+      "at": "2026-10-16T01:49:31.531Z",
       "event": "metrics_precheck_passed"
     },
     {
-      "at": "2026-10-16T00:31:23.594Z",
+      "at": "2026-10-16T01:49:34.147Z",
       "event": "traffic_switched",
-      "to": "green",
-      "previous": "blue"
+      "to": "blue",
+      "previous": "green"
     },
     {
-      "at": "2026-10-16T00:31:24.208Z",
+      "at": "2026-10-16T01:49:34.774Z",
       "event": "cutover_observed",
-      "seconds_after_switch": 0.4
+      "seconds_after_switch": 0.52
     },
     {
-      "at": "2026-10-16T00:31:26.209Z",
+      "at": "2026-10-16T01:49:36.775Z",
       "event": "fail_fast",
       "reason": "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах"
     },
     {
-      "at": "2026-10-16T00:31:26.716Z",
+      "at": "2026-10-16T01:49:37.440Z",
       "event": "traffic_rolled_back",
-      "to": "blue"
+      "to": "green"
     },
     {
-      "at": "2026-10-16T00:31:27.716Z",
+      "at": "2026-10-16T01:49:37.941Z",
       "event": "cutback_observed",
-      "seconds_after_rollback": 0.4
+      "seconds_after_rollback": 0.53
     }
   ],
   "checks": {
     "candidate_ready": {
       "status": "passed",
-      "at": "2026-10-16T00:31:17.316Z",
-      "duration_s": 6.2
+      "at": "2026-10-16T01:49:24.495Z",
+      "duration_s": 6.9
     },
     "preview": {
       "status": "passed",
-      "at": "2026-10-16T00:31:17.998Z",
+      "at": "2026-10-16T01:49:25.399Z",
       "summary": "16/16 проверок прошли",
       "pods": [
-        "mts-api-green-5964d8bfbd-jw79p",
-        "mts-api-green-5964d8bfbd-qwrrt"
+        "mts-api-blue-d6cdf994d-jxrgm",
+        "mts-api-blue-d6cdf994d-lfgcp"
       ],
       "probes": [
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "healthz",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "readyz",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "version_matches_release",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "list_tariffs",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "quote_known_answer",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "quote_without_token_401",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "quote_invalid_input_422",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "probe": "metrics_expose_release",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "healthz",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "readyz",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "version_matches_release",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "list_tariffs",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "quote_known_answer",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "quote_without_token_401",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "quote_invalid_input_422",
           "passed": true
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "probe": "metrics_expose_release",
           "passed": true
         }
@@ -150,27 +150,25 @@
     },
     "metrics_precheck": {
       "status": "passed",
-      "at": "2026-10-16T00:31:21.071Z",
+      "at": "2026-10-16T01:49:31.531Z",
       "summary": "кандидат виден в Prometheus",
       "targets": {
-        "mts-api-green-77dd84d4d9-75lrt": 1.0,
-        "mts-api-green-77dd84d4d9-qjzfc": 1.0,
-        "mts-api-green-77dd84d4d9-wk558": 1.0,
-        "mts-api-green-77dd84d4d9-mk464": 1.0,
-        "mts-api-green-5964d8bfbd-jw79p": 1.0,
-        "mts-api-green-5964d8bfbd-qwrrt": 1.0
+        "mts-api-blue-5584866b4b-pk46l": 1.0,
+        "mts-api-blue-5584866b4b-696h6": 0.0,
+        "mts-api-blue-d6cdf994d-lfgcp": 1.0,
+        "mts-api-blue-d6cdf994d-jxrgm": 1.0
       }
     },
     "switch_impact": {
       "status": "measured",
-      "at": "2026-10-16T00:31:26.209Z",
+      "at": "2026-10-16T01:49:36.775Z",
       "requests": 36,
       "failed": 0,
       "note": "ошибки прежнего релиза в окне ±2 с вокруг переключения (ошибки кандидата учитывает gate)"
     },
     "post_deploy_http": {
       "status": "failed",
-      "at": "2026-10-16T00:31:26.209Z",
+      "at": "2026-10-16T01:49:36.775Z",
       "passed": false,
       "reasons": [
         "доля неуспешных бизнес-запросов 33.3% > 2.0% на 21 запросах"
@@ -179,9 +177,9 @@
         "requests": 21,
         "failed": 7,
         "error_ratio": 0.3333333333333333,
-        "p95_seconds": 0.0063,
+        "p95_seconds": 0.0067,
         "served_by_release": {
-          "v3-faulty-20261016t003110z": 21
+          "v3-faulty-20261016t014916z": 21
         },
         "failures_by_status": {
           "500": 7
@@ -192,7 +190,7 @@
     },
     "metrics_gate": {
       "status": "failed",
-      "at": "2026-10-16T00:31:26.209Z",
+      "at": "2026-10-16T01:49:36.775Z",
       "passed": false,
       "reasons": [
         "не оценивалось: HTTP-gate уже провален"
@@ -201,34 +199,34 @@
     },
     "metrics_evidence_after_rollback": {
       "status": "recorded",
-      "at": "2026-10-16T00:31:37.904Z",
+      "at": "2026-10-16T01:49:48.146Z",
       "note": "метрики кандидата за окно наблюдения; на решение не влияют",
       "available": true,
       "error": null,
-      "requests": 27.0,
-      "errors": 7.5,
-      "p95_seconds": 0.00475,
+      "requests": 0.0,
+      "errors": 0.0,
+      "p95_seconds": null,
       "build_info_pods": 2,
       "targets": [
         {
-          "pod": "mts-api-green-5964d8bfbd-jw79p",
+          "pod": "mts-api-blue-d6cdf994d-lfgcp",
           "up": 1.0,
-          "age_seconds": 3.0
+          "age_seconds": 4.2
         },
         {
-          "pod": "mts-api-green-5964d8bfbd-qwrrt",
+          "pod": "mts-api-blue-d6cdf994d-jxrgm",
           "up": 1.0,
-          "age_seconds": 3.3
+          "age_seconds": 4.3
         }
       ],
-      "range_seconds": 15
+      "range_seconds": 14
     }
   },
   "artifact": {
-    "image": "localhost:5001/mts-api@sha256:f275ddca82397e4c10eb51fe53d611293479dd35aad327ad17b7bb6a5c973aea",
-    "digest": "sha256:f275ddca82397e4c10eb51fe53d611293479dd35aad327ad17b7bb6a5c973aea",
+    "image": "localhost:5001/mts-api@sha256:2d8f386e9d2552144945ab8d6ef369eb4719c81106e617e2d9fd93c18b93639f",
+    "digest": "sha256:2d8f386e9d2552144945ab8d6ef369eb4719c81106e617e2d9fd93c18b93639f",
     "version": "v3-faulty",
-    "git_sha": "e6bf26c83d03",
+    "git_sha": "a6703daae18c",
     "provenance": {
       "stages": {
         "lint": "passed",
@@ -249,9 +247,9 @@
         "blocking": [],
         "unfixed_high_critical": 0
       },
-      "built_at": "2026-10-16T00:31:06Z",
+      "built_at": "2026-10-16T01:49:12Z",
       "base_image": "python@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a",
-      "local_image_id": "sha256:f275ddca82397e4c10eb51fe53d611293479dd35aad327ad17b7bb6a5c973aea"
+      "local_image_id": "sha256:2d8f386e9d2552144945ab8d6ef369eb4719c81106e617e2d9fd93c18b93639f"
     }
   },
   "thresholds": {
@@ -266,9 +264,9 @@
     "rps": 8.0
   },
   "lock": {
-    "holder": "release/v3-faulty-20261016t003110z@vm#110670487",
-    "purpose": "release/v3-faulty-20261016t003110z",
-    "acquired_at": "2026-10-16T00:31:10.552Z"
+    "holder": "release/v3-faulty-20261016t014916z@vm#115356915",
+    "purpose": "release/v3-faulty-20261016t014916z",
+    "acquired_at": "2026-10-16T01:49:16.990Z"
   },
   "tools": {
     "kubectl": "v1.36.5",
@@ -277,37 +275,37 @@
   },
   "slots": {
     "previous": {
-      "slot": "blue",
-      "image": "localhost:5001/mts-api@sha256:6184f6ebc8610308c36eed4c23780c3e4a420c7abadf3ae99656c93e40495cd2",
-      "digest": "sha256:6184f6ebc8610308c36eed4c23780c3e4a420c7abadf3ae99656c93e40495cd2",
+      "slot": "green",
+      "image": "localhost:5001/mts-api@sha256:14475ad6d0a87c05ff67d526aedcd6709552a828f567deafc7ded3890e4bf305",
+      "digest": "sha256:14475ad6d0a87c05ff67d526aedcd6709552a828f567deafc7ded3890e4bf305",
       "version": "v2",
-      "release_id": "v2-20261016t002840z",
-      "git_sha": "e6bf26c83d03",
+      "release_id": "v2-20261016t014642z",
+      "git_sha": "a6703daae18c",
       "replicas": 2,
       "ready_replicas": 2
     },
     "candidate": {
-      "slot": "green",
-      "digest": "sha256:f275ddca82397e4c10eb51fe53d611293479dd35aad327ad17b7bb6a5c973aea",
+      "slot": "blue",
+      "digest": "sha256:2d8f386e9d2552144945ab8d6ef369eb4719c81106e617e2d9fd93c18b93639f",
       "version": "v3-faulty",
-      "release_id": "v3-faulty-20261016t003110z"
+      "release_id": "v3-faulty-20261016t014916z"
     }
   },
-  "switched_at": "2026-10-16T00:31:23.594Z",
+  "switched_at": "2026-10-16T01:49:34.147Z",
   "rollback": {
     "performed": true,
-    "target_slot": "blue",
-    "target_release": "v2-20261016t002840z",
-    "seconds_to_cutback": 0.4,
+    "target_slot": "green",
+    "target_release": "v2-20261016t014642z",
+    "seconds_to_cutback": 0.53,
     "recovery_verified": true,
     "verification": {
       "cutback_observed": true,
-      "requests": 88,
+      "requests": 85,
       "failed": 0,
       "error_ratio": 0.0,
-      "p95_seconds": 0.0056,
+      "p95_seconds": 0.0064,
       "served_by_release": {
-        "v2-20261016t002840z": 88
+        "v2-20261016t014642z": 85
       },
       "failures_by_status": {},
       "candidate_share": 1.0
@@ -315,15 +313,15 @@
   },
   "durations": {
     "seconds_from_start": {
-      "deploy_started": 0.5,
-      "candidate_ready": 6.8,
-      "preview_passed": 7.5,
-      "metrics_precheck_passed": 10.6,
-      "traffic_switched": 13.1,
-      "cutover_observed": 13.7,
-      "traffic_rolled_back": 16.2,
-      "cutback_observed": 17.2,
-      "total": 27.6
+      "deploy_started": 0.6,
+      "candidate_ready": 7.6,
+      "preview_passed": 8.5,
+      "metrics_precheck_passed": 14.6,
+      "traffic_switched": 17.2,
+      "cutover_observed": 17.9,
+      "traffic_rolled_back": 20.5,
+      "cutback_observed": 21.0,
+      "total": 31.5
     }
   }
 }

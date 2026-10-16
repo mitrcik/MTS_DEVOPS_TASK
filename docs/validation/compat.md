@@ -12,6 +12,15 @@
   весь путь идёт её пакетами и её Python. Ядро и Docker Engine — runner'а (Ubuntu 24.04), поэтому
   это проверка пакетов и пользовательского окружения, а не настоящей ВМ этой версии.
 
+## Прогон #5 — commit `a6703da` — все jobs зелёные
+
+Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38836825406
+
+Повтор всей матрицы после исправлений по независимой перепроверке: строгий `set -e` в сценариях,
+`LC_ALL=C.UTF-8`, ключ PPA deadsnakes экспортируется в keyring только с закреплённым отпечатком,
+`--only-binary` для venv. Все 6 jobs (`pins`, ВМ Ubuntu 22.04 x86_64, ВМ Ubuntu 24.04 aarch64,
+окружения Ubuntu 22.04/24.04/26.04) — ✅, в каждом окружении 15/15 сценариев.
+
 ## Прогон #4 — commit `e6bf26c` — все jobs зелёные
 
 Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38827448022

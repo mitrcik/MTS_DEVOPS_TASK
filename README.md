@@ -153,7 +153,7 @@ newgrp docker       # или перелогиниться: доступ к Docke
 
 Ресурсы: цель проекта 4 vCPU / 8 ГБ RAM (фактически стенд занимает ≈ 1,6 ГиБ RAM в покое),
 40 ГБ диска у ВМ (проекту нужно ≈ 10 ГБ), интернет (Docker Hub, ghcr.io, GitHub Releases, dl.k8s.io,
-get.helm.sh, PyPI, mirror.gcr.io; полный список хостов — [`docs/vm-guide.md`](docs/vm-guide.md) §1).
+get.helm.sh, PyPI, mirror.gcr.io и их CDN; подробнее — [`docs/vm-guide.md`](docs/vm-guide.md) §1).
 Свободные порты на `127.0.0.1`: 8080 (ingress), 6550 (Kubernetes API), 5001 (registry). Правка `/etc/hosts`, домен, публичный IP и GitHub-токен **не нужны**.
 
 ### Три команды

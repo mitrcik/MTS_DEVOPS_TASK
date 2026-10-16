@@ -28,24 +28,32 @@ sequenceDiagram
 
 ## Подготовка стенда (однократно, администратор хоста)
 
-1. Ubuntu 22.04–26.04 и предпосылки: `make prereqs` (как в `docs/vm-guide.md`).
-2. Клонировать репозиторий в `/opt/mts-devops`, создать `.env`:
+1. Ubuntu 22.04–26.04. Служебный пользователь стенда `deploy` владеет `/opt/mts-devops`, состоит в
+   группе `docker`, вход по паролю закрыт (по ключу CI из шага 4 — только forced command):
    ```bash
+   sudo apt-get update && sudo apt-get install -y git make
+   sudo useradd -m -s /bin/bash deploy && sudo passwd -l deploy
+   sudo install -d -o deploy -g deploy /opt/mts-devops
+   sudo -iu deploy git clone https://github.com/<owner>/<repo>.git /opt/mts-devops
+   sudo /opt/mts-devops/scripts/install-prereqs.sh    # Docker, buildx, Python — как make prereqs
+   sudo usermod -aG docker deploy
+   ```
+2. Настройки и запуск стенда от имени `deploy`:
+   ```bash
+   sudo -iu deploy bash -c 'cd /opt/mts-devops && cat > .env' <<'EOF'
    CLUSTER_NAME=mts-devops
-   # age-ключ внутри .local/: пользователь deploy (шаг 4) должен читать его, иначе release
-   # не расшифрует учебный токен; по умолчанию ключ лежит в ~/.config администратора
-   AGE_KEY_FILE=/opt/mts-devops/.local/keys/age.key
    # только нижний регистр — так CI публикует ссылки на образы (сравнение тоже без учёта регистра)
    ALLOWED_IMAGE_REPOSITORY=ghcr.io/<owner>/<repo>/mts-api
+   EOF
+   sudo -iu deploy make -C /opt/mts-devops up
    ```
-   и выполнить `make up` (поднимет стенд, создаст секреты и ограниченный `deploy.kubeconfig`).
-   Начальный релиз `make up` собирается в локальном registry: `ALLOWED_IMAGE_REPOSITORY` ограничивает
-   только доставки через `deploy-gate.sh`, а не локальные `make up`/`make release`.
+   `make up` поднимет стенд, создаст секреты и ограниченный `deploy.kubeconfig`; age-ключ — вне
+   проекта, в `~deploy/.config/mts-devops/`. Начальный релиз собирается в локальном registry:
+   `ALLOWED_IMAGE_REPOSITORY` ограничивает только доставки через `deploy-gate.sh`. Продление токена
+   `deploy.kubeconfig` (7 дней) — тем же `sudo -iu deploy make -C /opt/mts-devops up`.
 3. Доступ узла k3s к GHCR: если пакет приватный — read-only токен (`read:packages`) в
    `registries.yaml` k3s (`configs."ghcr.io".auth`), либо сделать пакет публичным.
-4. Пользователь `deploy` без пароля и shell-доступа, владелец только `.local/` проекта (там `deploy.kubeconfig`,
-   SOPS-источник и age-ключ из шага 2; права 0600/0700 сохраняются):
-   `~deploy/.ssh/authorized_keys`:
+4. Ключ CI — только с forced command, в `~deploy/.ssh/authorized_keys`:
    ```
    restrict,command="/opt/mts-devops/scripts/remote/deploy-gate.sh" ssh-ed25519 AAAA… github-actions-deploy
    ```
@@ -71,6 +79,12 @@ sequenceDiagram
 - Runner: `contents: read`; не получает kubeconfig и не видит секреты приложения.
 - `deploy@host`: одна forced command; release controller работает с `deploy.kubeconfig`
   (Role в `mts-app`, без exec, узлов и других namespace).
+- Компромисс этой схемы: процесс `release` выполняется от пользователя стенда, а он в группе `docker`
+  (на этом хосте это эквивалент root), и на диске стенда лежит `admin.kubeconfig`. Граница доверия для
+  CI — forced command и проверка входных данных: provenance не больше 64 КиБ, ссылка только по digest,
+  `trivy.result=passed`, совпадение digest, `ALLOWED_IMAGE_REPOSITORY`. Отдельный пользователь без Docker
+  потребовал бы выдавать ему доступ к `deploy.kubeconfig`, SOPS-источнику и age-ключу заново после каждого
+  `make up` (файл пересоздаётся с правами 0600) — в проекте это не реализовано.
 - Конкурирующие запуски: `concurrency: deploy-production` (cancel-in-progress: false) в GitHub
   и Lease-блокировка в самом кластере (защищает и от одновременного ручного релиза на стенде).
 - Начатое переключение не прерывается новым коммитом.

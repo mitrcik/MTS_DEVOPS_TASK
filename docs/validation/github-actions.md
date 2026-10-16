@@ -97,6 +97,8 @@ Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38822012480
 |---|---|---|
 | [#6](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38826353059) | `4d8a0ff` (make prereqs, arm64, лицензия) | ✅ checks, image, e2e |
 | [#9](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38827448057) | `e6bf26c` (инструкция для ВМ, исправления compat) | ✅ checks, image, e2e |
+| [#10](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38830873465) | `18eb57e` (документация) | ✅ checks, image, e2e |
+| [#11](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38836825455) | `a6703da` (исправления по независимой перепроверке, строгий e2e) | ✅ checks, image, e2e |
 
 Прогоны #7 и #8 отменены GitHub как устаревшие ожидающие (в группе concurrency ждёт только самый
 новый прогон). Совместимость с другими версиями Ubuntu и arm64 — `compat.md`.
@@ -105,5 +107,5 @@ Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38822012480
 
 Путь жюри (`git clone` → `cd` → `make up`) проверен на чистом `ubuntu-24.04` без каких-либо
 обходов среды разработки: холодный `make up` — 3 мин 21 с, 3 мин 25 с, 3 мин 23 с (прогоны #1–#3).
-Прогоны #3, #6 и #9 — все 15 приёмочных сценариев passed. Job `deploy` (CD на постоянный стенд)
+Прогоны #3, #6, #9, #10 и #11 — все 15 приёмочных сценариев passed. Job `deploy` (CD на постоянный стенд)
 ни разу не выполнялся: нет хоста — статус «настроено, не проверено».

@@ -147,10 +147,12 @@ done
 
 # --- Сетевой доступ к источникам загрузок -----------------------------------
 check_url() {
-  local name="$1" url="$2" code
-  # -L: загрузки GitHub Releases и PyPI отдаются с других хостов (release-assets.githubusercontent.com …)
-  code="$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 15 -I "${url}" 2>/dev/null || true)"
-  if [[ "${code}" =~ ^(2|3|401|403|405) ]]; then pass "доступен ${name}"; else warns "недоступен ${name} (${url}, HTTP ${code:-000})"; fi
+  local name="$1" url="$2" code rc=0
+  # -L: загрузки GitHub Releases отдаются с другого хоста (release-assets.githubusercontent.com);
+  # недоступная цель перенаправления — ошибка curl, поэтому учитывается и его код завершения
+  code="$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 15 -I "${url}" 2>/dev/null)" || rc=$?
+  if [[ ${rc} -eq 0 && "${code}" =~ ^(2|401|403|405) ]]; then pass "доступен ${name}"
+  else warns "недоступен ${name} (${url}, HTTP ${code:-000}, curl ${rc})"; fi
 }
 if [[ ! -x "${LOCAL_DIR}/bin/helm" || ! -x "${LOCAL_DIR}/bin/trivy" ]]; then
   check_url "dl.k8s.io (kubectl)" "https://dl.k8s.io/release/stable.txt"
