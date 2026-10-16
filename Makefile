@@ -2,6 +2,8 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 MAKEFLAGS += --no-print-directory
+# см. scripts/lib.sh: локаль из SSH-сеанса может отсутствовать в ВМ, а Ansible её требует
+export LC_ALL := C.UTF-8
 
 # Версии (versions.env) и локальные настройки (.env) загружает scripts/lib.sh — единый
 # разбор для bash, Ansible и Python; Makefile их не включает, чтобы не было двух синтаксисов.
@@ -86,7 +88,7 @@ credentials: ## Показать учебные пароль Grafana и API-то
 	@$(BGCTL) credentials
 
 .PHONY: test-e2e
-test-e2e: ## Приёмочные сценарии на работающем стенде (долго, ~20-30 мин)
+test-e2e: ## Приёмочные сценарии на работающем стенде (долго, ~10-13 мин)
 	@scripts/e2e.sh
 
 .PHONY: down

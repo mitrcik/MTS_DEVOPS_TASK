@@ -98,13 +98,23 @@ class StandLock:
         return False
 
     def _renew_loop(self) -> None:
+        # Временная ошибка API (таймаут, перезапуск сервера) — повтор на следующем тике. Если
+        # продлить не удаётся дольше половины срока аренды, блокировка считается потерянной
+        # (её могут перехватить по истечении ttl), и операция останавливается на lock.check().
+        last_ok = time.monotonic()
         while not self._stop.wait(self.ttl / 3):
-            lease = self.kube.get_json("lease", LOCK_NAME)
-            if not lease or lease.get("spec", {}).get("holderIdentity") != self.holder:
-                self._lost.set()
-                return
-            body = self._body(lease["metadata"]["resourceVersion"], lease["spec"].get("acquireTime"))
-            if self.kube.kubectl("replace", "-f", "-", input_text=body, check=False).returncode:
+            try:
+                lease = self.kube.get_json("lease", LOCK_NAME)
+                if not lease or lease.get("spec", {}).get("holderIdentity") != self.holder:
+                    self._lost.set()
+                    return
+                body = self._body(lease["metadata"]["resourceVersion"], lease["spec"].get("acquireTime"))
+                if self.kube.kubectl("replace", "-f", "-", input_text=body, check=False).returncode == 0:
+                    last_ok = time.monotonic()
+                    continue
+            except Exception as exc:  # noqa: BLE001 — любая ошибка продления обрабатывается одинаково
+                warn(f"продление блокировки не удалось: {str(exc)[:200]}")
+            if time.monotonic() - last_ok >= self.ttl / 2:
                 self._lost.set()
                 return
 

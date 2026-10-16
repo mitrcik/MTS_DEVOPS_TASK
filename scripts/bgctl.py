@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pylib import secrets as sec
-from pylib.common import Config, fail, log, ok, warn
+from pylib.common import CmdError, Config, fail, log, ok, warn
 from pylib.httpprobe import request
 from pylib.kube import Kube
 
@@ -113,7 +113,7 @@ def cmd_release(cfg: Config, args: argparse.Namespace) -> int:
     from pylib.release import EXIT, Artifact, ReleaseController
 
     artifact = Artifact.from_provenance(Path(args.provenance))
-    allowed = cfg.get("ALLOWED_IMAGE_REPOSITORY")
+    allowed = cfg.get("ALLOWED_IMAGE_REPOSITORY").lower()  # ссылки на образы — в нижнем регистре
     if allowed and artifact.repo != allowed:
         fail(f"образ {artifact.repo} не из разрешённого репозитория {allowed}")
         return 1
@@ -251,6 +251,10 @@ def main(argv: list[str] | None = None) -> int:
         return handler(cfg, args)
     except sec.SecretsError as exc:
         fail(str(exc))
+        return 1
+    except CmdError as exc:
+        fail(str(exc)[:600])
+        fail("кластер или инструмент недоступен: после старта Docker подождите 1–2 минуты; если не помогло — make up")
         return 1
     except KeyboardInterrupt:
         fail("прервано пользователем; состояние фазы сохранено, следующий запуск восстановит стенд")

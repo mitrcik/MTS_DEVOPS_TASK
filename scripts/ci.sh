@@ -159,6 +159,10 @@ stage_push() {
   [[ "$(docker image inspect --format '{{.Id}}' "${IMAGE}")" == "${image_id}" ]] \
     || die "тег ${IMAGE} изменился после сканирования — публикация отменена"
   "${HELPER[@]}" require-passed "${ART}/trivy-summary.json"
+  if [[ "${REGISTRY}" == localhost:* ]] \
+     && ! curl -fsS -o /dev/null --max-time 5 --noproxy '*' "http://127.0.0.1:${REGISTRY#localhost:}/v2/"; then
+    die "registry стенда ${REGISTRY} недоступен: стадии push нужен работающий стенд (make up); без стенда — scripts/ci.sh lint test validate build scan"
+  fi
   docker push --quiet "${IMAGE}" >/dev/null
   local digest
   digest="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "${IMAGE}" \

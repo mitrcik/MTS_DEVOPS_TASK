@@ -117,7 +117,7 @@ flowchart LR
 | Инструмент | Версия | Источник установки и проверка |
 |---|---|---|
 | Ubuntu (хост) | 22.04 / 24.04 / 26.04 LTS, x86_64 или aarch64 | основной профиль — 24.04 x86_64; матрица проверок — [`docs/vm-guide.md`](docs/vm-guide.md) §8 |
-| Docker Engine + buildx | ≥ 24 (проверены 29.8.2, Docker CE на runner GitHub и `docker.io` 29.1.3 из Ubuntu) | `make prereqs`: `docker.io` + `docker-buildx` из Ubuntu; установленный Docker CE не трогается |
+| Docker Engine + buildx | ≥ 24 (проверены Engine 29.8.2 в среде разработки и Docker CE 28.0.4 на ВМ GitHub; из пакетов Ubuntu `docker.io` 29.1.3 + `docker-buildx` 0.30.1 проверены CLI и buildx) | `make prereqs`: `docker.io` + `docker-buildx` из Ubuntu; установленный Docker CE не трогается |
 | Python (хост) | ≥ 3.12 (проверены 3.12, 3.13, 3.14) | `python3-venv` из Ubuntu; на 22.04 — `python3.12` из PPA deadsnakes (`make prereqs`) |
 | ansible-core / yamllint / ruff | 2.21.4 / 1.38.0 / 0.16.9 | PyPI, `pip --require-hashes` (`infra/tooling/requirements.lock`) |
 | k3d | 5.9.0 | GitHub Releases, sha256 из `checksums.txt` (amd64 и arm64 — для всех CLI ниже) |
@@ -152,9 +152,9 @@ newgrp docker       # или перелогиниться: доступ к Docke
 ```
 
 Ресурсы: цель проекта 4 vCPU / 8 ГБ RAM (фактически стенд занимает ≈ 1,6 ГиБ RAM в покое),
-40 ГБ диска у ВМ (проекту нужно ≈ 10 ГБ), интернет до Docker Hub, ghcr.io, GitHub Releases, dl.k8s.io,
-get.helm.sh, PyPI, mirror.gcr.io. Свободные порты на `127.0.0.1`: 8080 (ingress), 6550 (Kubernetes API),
-5001 (registry). Правка `/etc/hosts`, домен, публичный IP и GitHub-токен **не нужны**.
+40 ГБ диска у ВМ (проекту нужно ≈ 10 ГБ), интернет (Docker Hub, ghcr.io, GitHub Releases, dl.k8s.io,
+get.helm.sh, PyPI, mirror.gcr.io; полный список хостов — [`docs/vm-guide.md`](docs/vm-guide.md) §1).
+Свободные порты на `127.0.0.1`: 8080 (ingress), 6550 (Kubernetes API), 5001 (registry). Правка `/etc/hosts`, домен, публичный IP и GitHub-токен **не нужны**.
 
 ### Три команды
 
@@ -195,7 +195,7 @@ make up
 |---|---|
 | `make prereqs` | однократно на чистой Ubuntu: Docker + buildx, Python, git, make (через sudo) |
 | `make up` / `make doctor` | подготовка и запуск / диагностика без изменений |
-| `make ci` | все стадии CI локально (lint, test, validate, build, scan, push) |
+| `make ci` | все стадии CI локально (lint, test, validate, build, scan, push в registry стенда — нужен `make up`) |
 | `make verify` / `make verify-security` | проверка стенда / мер безопасности |
 | `make release VERSION=v2` | выпуск новой версии через весь конвейер |
 | `make demo-failure` / `make demo-not-ready` / `make demo-no-metrics` | откат после переключения / отклонение до переключения / gate без метрик |
@@ -312,9 +312,12 @@ Claude Code использовался для генерации кода, ча�
 
 Проверено реальными запусками (подробно — [`docs/validation/`](docs/validation/)):
 
-- чистые ВМ GitHub: Ubuntu 24.04 x86_64 (на каждый push), Ubuntu 22.04 x86_64 и Ubuntu 24.04 aarch64 —
-  `make prereqs` → `make up` → 15 приёмочных сценариев ([`compat.md`](docs/validation/compat.md));
-- пакеты и окружение Ubuntu 22.04 / 24.04 / 26.04 (Docker и Python этих версий) в контейнере — тот же путь;
+- чистые ВМ GitHub: Ubuntu 24.04 x86_64 — `make doctor` → `make up` → 15 приёмочных сценариев на каждый
+  push; Ubuntu 22.04 x86_64 и 24.04 aarch64 — `make prereqs` → `make up` → 15 сценариев
+  ([`compat.md`](docs/validation/compat.md)). На ВМ GitHub Docker CE предустановлен, поэтому
+  `make prereqs` там ставил Python и проверял Docker, а не устанавливал его;
+- пакеты Ubuntu 22.04 / 24.04 / 26.04 (Docker CLI `docker.io`, buildx, Python этих версий) в контейнере
+  с Docker хоста — тот же путь;
 - среда разработки (Ubuntu 24.04, 4 vCPU, 15 ГБ): все сценарии, маршрут жюри вручную, перезапуск Docker
   (стенд восстанавливается сам) — [`local-e2e.md`](docs/validation/local-e2e.md).
 

@@ -10,13 +10,17 @@
 | ОС | Ubuntu Server или Desktop **24.04 LTS** | также поддерживаются 22.04 и 26.04 LTS (см. «Что проверено») |
 | Архитектура | x86_64 (amd64) или aarch64 (arm64) | arm64 — например, UTM/Parallels на Mac с Apple Silicon |
 | vCPU | 4 | 2 — `make doctor` предупредит, всё будет медленнее (не проверялось) |
-| RAM | 8 ГБ | меньше 7 ГБ — предупреждение, меньше 4 ГБ — ошибка `make doctor`; пик на стенде — в «Что проверено» |
+| RAM | 8 ГБ | 4 ГБ — минимум (`make doctor` предупредит); если ВМ видит меньше ≈ 3,5 ГиБ — ошибка. Пик за полный прогон ≈ 2,2 ГиБ (раздел 8) |
 | Диск | 40 ГБ | образы, кэш сборки, база Trivy и данные кластера занимают ≈ 10 ГБ |
 | Сеть | доступ в интернет (NAT достаточно) | входящие порты не нужны: все адреса стенда — только `127.0.0.1` внутри ВМ |
 
-Нужен доступ к: archive.ubuntu.com (или зеркалу), Docker Hub, ghcr.io, github.com (Releases),
-dl.k8s.io, get.helm.sh, pypi.org, mirror.gcr.io; на Ubuntu 22.04 ещё keyserver.ubuntu.com и
-ppa.launchpadcontent.net. `make doctor` проверяет доступность каждого источника.
+Нужен доступ в интернет (при белом списке хостов откройте все): архивы Ubuntu (archive.ubuntu.com,
+security.ubuntu.com; для arm64 — ports.ubuntu.com) или зеркало; Docker Hub (registry-1.docker.io,
+auth.docker.io, production.cloudflare.docker.com); ghcr.io и pkg-containers.githubusercontent.com;
+github.com и release-assets.githubusercontent.com (загрузки Releases); dl.k8s.io; get.helm.sh;
+pypi.org и files.pythonhosted.org; mirror.gcr.io; на Ubuntu 22.04 ещё keyserver.ubuntu.com и
+ppa.launchpadcontent.net. `make doctor` проверяет основные источники (с переходом по
+перенаправлениям), но не каждый хост из списка.
 
 ## 2. Подготовка ВМ (однократно, ~2–5 минут)
 
@@ -81,7 +85,10 @@ make up
 
 **Ubuntu Desktop:** откройте браузер внутри ВМ.
 
-**Ubuntu Server (ВМ без графики) — SSH-туннель с вашего компьютера:**
+**Ubuntu Server (ВМ без графики) — SSH-туннель с вашего компьютера.** В ВМ нужен SSH-сервер:
+при установке Ubuntu Server отметьте «Install OpenSSH server» или выполните в ВМ
+`sudo apt-get install -y openssh-server`. VirtualBox с сетью NAT: Настройки ВМ → Сеть →
+Дополнительно → Проброс портов: TCP, порт хоста 2222 → порт гостя 22.
 
 ```bash
 ssh -L 8080:127.0.0.1:8080 <пользователь>@<IP-адрес ВМ>
@@ -129,11 +136,13 @@ Chrome, Firefox и Edge сами направляют `*.localhost` на `127.0.
 | Окружение | Как | Результат |
 |---|---|---|
 | Ubuntu 24.04 x86_64, чистая ВМ | GitHub-hosted runner: `make doctor` → `make up` → 15 сценариев (`ci.yml`, на каждый push) | ✅ 15/15 (`docs/validation/github-actions.md`) |
-| Ubuntu 22.04 x86_64, чистая ВМ | runner `ubuntu-22.04`: `make prereqs` (python3.12 из deadsnakes) → … → 15 сценариев (`compat.yml`) | ✅ 15/15, `make up` 3 мин 22 с (`docs/validation/compat.md`) |
+| Ubuntu 22.04 x86_64, чистая ВМ | runner `ubuntu-22.04`: `make prereqs` (python3.12 из deadsnakes; Docker CE на runner'е предустановлен) → … → 15 сценариев (`compat.yml`) | ✅ 15/15, `make up` 3 мин 22 с (`docs/validation/compat.md`) |
 | Ubuntu 24.04 aarch64 (arm64), чистая ВМ | runner `ubuntu-24.04-arm`: `make prereqs` → … → 15 сценариев | ✅ 15/15, `make up` 3 мин 17 с |
-| Ubuntu 22.04 / 24.04 / 26.04 — пакеты и окружение | контейнер `ubuntu:<версия>` с Docker хоста: `make prereqs` ставит docker.io, buildx, Python из архивов Ubuntu; дальше полный путь | ✅ 15/15 в каждом (Python 3.12 / 3.12 / 3.14) |
+| Ubuntu 22.04 / 24.04 / 26.04 — пакеты и окружение | контейнер `ubuntu:<версия>` с Docker хоста: `make prereqs` ставит Docker CLI (`docker.io`), buildx, Python из архивов Ubuntu; дальше полный путь (daemon — хоста) | ✅ 15/15 в каждом (Python 3.12 / 3.12 / 3.14) |
 | Ubuntu 24.04, среда разработки | маршрут из раздела 4 вручную, перезапуск Docker («перезагрузка») | ✅ все команды; после перезапуска `verify` 14/14 через 34 с (`docs/validation/local-e2e.md`) |
 
 Пиковая память хоста за `make up` + 15 сценариев — около 2,2 ГиБ; место на диске после полного
 прогона — около 9 ГБ. Не проверялось: настоящая ВМ с Ubuntu 26.04 (проверено окружение 26.04 в
-контейнере на ядре Ubuntu 24.04), ВМ с 2 vCPU или 4 ГБ RAM, WSL2, Docker из snap.
+контейнере на ядре Ubuntu 24.04); запуск daemon из пакета `docker.io` и шаг с группой `docker`/`newgrp`
+на настоящей ВМ (на ВМ GitHub Docker CE предустановлен, а в контейнерных проверках работал Docker хоста);
+ВМ с 2 vCPU или 4 ГБ RAM, WSL2, Docker из snap.

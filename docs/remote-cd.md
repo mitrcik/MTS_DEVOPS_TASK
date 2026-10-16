@@ -28,16 +28,23 @@ sequenceDiagram
 
 ## Подготовка стенда (однократно, администратор хоста)
 
-1. Ubuntu 24.04, Docker Engine, `git make curl python3-venv` (как в README).
+1. Ubuntu 22.04–26.04 и предпосылки: `make prereqs` (как в `docs/vm-guide.md`).
 2. Клонировать репозиторий в `/opt/mts-devops`, создать `.env`:
    ```bash
    CLUSTER_NAME=mts-devops
+   # age-ключ внутри .local/: пользователь deploy (шаг 4) должен читать его, иначе release
+   # не расшифрует учебный токен; по умолчанию ключ лежит в ~/.config администратора
+   AGE_KEY_FILE=/opt/mts-devops/.local/keys/age.key
+   # только нижний регистр — так CI публикует ссылки на образы (сравнение тоже без учёта регистра)
    ALLOWED_IMAGE_REPOSITORY=ghcr.io/<owner>/<repo>/mts-api
    ```
    и выполнить `make up` (поднимет стенд, создаст секреты и ограниченный `deploy.kubeconfig`).
+   Начальный релиз `make up` собирается в локальном registry: `ALLOWED_IMAGE_REPOSITORY` ограничивает
+   только доставки через `deploy-gate.sh`, а не локальные `make up`/`make release`.
 3. Доступ узла k3s к GHCR: если пакет приватный — read-only токен (`read:packages`) в
    `registries.yaml` k3s (`configs."ghcr.io".auth`), либо сделать пакет публичным.
-4. Пользователь `deploy` без пароля и shell-доступа, владелец только `.local/` проекта:
+4. Пользователь `deploy` без пароля и shell-доступа, владелец только `.local/` проекта (там `deploy.kubeconfig`,
+   SOPS-источник и age-ключ из шага 2; права 0600/0700 сохраняются):
    `~deploy/.ssh/authorized_keys`:
    ```
    restrict,command="/opt/mts-devops/scripts/remote/deploy-gate.sh" ssh-ed25519 AAAA… github-actions-deploy

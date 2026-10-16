@@ -26,7 +26,12 @@ scenario() {
   log "━━━━ сценарий ${id}: ${expect}"
   local t0 rc=0
   t0=$(date +%s)
-  "$@" > "${OUT}/${id}.log" 2>&1 || rc=$?
+  # подоболочка с set -e: внутри функций сценария любой упавший шаг завершает сценарий
+  # (вызов «cmd || rc=$?» отключил бы errexit во всей функции)
+  set +e
+  ( set -e; "$@" ) > "${OUT}/${id}.log" 2>&1
+  rc=$?
+  set -e
   local dt=$(( $(date +%s) - t0 ))
   local report
   report="$(ls -t "${LOCAL_DIR}/reports/"*.md 2>/dev/null | head -1 || true)"
@@ -79,12 +84,13 @@ concurrent_release() {
   local main=$!
   # ждём, пока основной релиз дойдёт до этапа под блокировкой
   for _ in $(seq 1 600); do "${K[@]}" get lease mts-api-change-lock >/dev/null 2>&1 && break; sleep 1; done
-  "${K[@]}" get lease mts-api-change-lock -o jsonpath='{.spec.holderIdentity}{"\n"}'
+  "${K[@]}" get lease mts-api-change-lock -o jsonpath='{.spec.holderIdentity}{"\n"}' || true
   local rc_rot=0 rc_rel=0
   "${BGCTL[@]}" rotate-secret || rc_rot=$?
   CI_STAGES="build scan push" "${ROOT_DIR}/scripts/release.sh" --version v4-competing || rc_rel=$?
   echo "конкурирующая ротация: rc=${rc_rot} (ожидается 10), конкурирующий релиз: rc=${rc_rel} (ожидается 10)"
-  wait "${main}"; local rc_main=$?
+  local rc_main=0
+  wait "${main}" || rc_main=$?
   tail -5 "${OUT}/concurrent-main.log"
   echo "основной релиз: rc=${rc_main} (ожидается 0)"
   [[ ${rc_rot} -eq 10 && ${rc_rel} -eq 10 && ${rc_main} -eq 0 ]]

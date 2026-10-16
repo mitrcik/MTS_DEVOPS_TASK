@@ -19,8 +19,8 @@ Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38827448022
 | Job | Окружение | `make prereqs` | `make up` (с нуля) | Сценарии | Итог |
 |---|---|---|---|---|---|
 | `pins` | sha256 всех CLI (amd64 и arm64) против официальных файлов checksum | — | — | — | ✅ 10 совпадений; age не публикует checksum (пропуск) |
-| ВМ Ubuntu 22.04 x86_64 | runner `ubuntu-22.04`, системный Python 3.10 | ✅ 30 с, python3.12 из PPA deadsnakes (ключ сверен по отпечатку) | ✅ 3 мин 22 с | ✅ 15/15, 9 мин 09 с | ✅ |
-| ВМ Ubuntu 24.04 aarch64 | runner `ubuntu-24.04-arm` (arm64) | ✅ 13 с | ✅ 3 мин 17 с | ✅ 15/15, 9 мин 38 с | ✅ |
+| ВМ Ubuntu 22.04 x86_64 | runner `ubuntu-22.04`, системный Python 3.10, Docker CE предустановлен | ✅ 30 с, python3.12 из PPA deadsnakes (ключ сверен по отпечатку) | ✅ 3 мин 22 с | ✅ 15/15, 9 мин 09 с | ✅ |
+| ВМ Ubuntu 24.04 aarch64 | runner `ubuntu-24.04-arm` (arm64), Docker CE предустановлен | ✅ 13 с | ✅ 3 мин 17 с | ✅ 15/15, 9 мин 38 с | ✅ |
 | Ubuntu 22.04 в контейнере | `ubuntu:22.04`: docker.io 29.1.3 + docker-buildx 0.30.1 из Ubuntu, python3.12 из deadsnakes | ✅ | ✅ | ✅ 15/15 | ✅ 14 мин 21 с всего |
 | Ubuntu 24.04 в контейнере | `ubuntu:24.04`: docker.io 29.1.3, Python 3.12.3 | ✅ | ✅ | ✅ 15/15 | ✅ 12 мин 21 с всего |
 | Ubuntu 26.04 в контейнере | `ubuntu:26.04`: docker.io 29.1.3, Python 3.14.4 | ✅ | ✅ | ✅ 15/15 | ✅ 13 мин 20 с всего |
@@ -68,5 +68,7 @@ Run: https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/runs/38826688142
 
 ## Не проверено
 
-Настоящая ВМ с Ubuntu 26.04 (проверено окружение 26.04 в контейнере на ядре 24.04), ВМ с 2 vCPU
-или 4 ГБ RAM, WSL2, Docker из snap.
+Настоящая ВМ с Ubuntu 26.04 (проверено окружение 26.04 в контейнере на ядре 24.04); запуск daemon из
+пакета `docker.io` и шаг с группой `docker`/`newgrp` на настоящей ВМ (на ВМ GitHub Docker CE
+предустановлен — `make prereqs` его не переустанавливал; в контейнерных проверках работал Docker хоста);
+ВМ с 2 vCPU или 4 ГБ RAM, WSL2, Docker из snap.

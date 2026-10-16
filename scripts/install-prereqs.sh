@@ -72,11 +72,19 @@ if ${use_deadsnakes}; then
   keyring=/etc/apt/keyrings/deadsnakes.gpg
   install -m 0755 -d /etc/apt/keyrings
   tmp_key="$(mktemp)"
+  gnupg_home="$(mktemp -d)"
   curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x${DEADSNAKES_FPR}" -o "${tmp_key}"
-  got_fpr="$(gpg --show-keys --with-colons "${tmp_key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}')"
-  [[ "${got_fpr}" == "${DEADSNAKES_FPR}" ]] \
-    || die "ключ PPA deadsnakes: ожидался отпечаток ${DEADSNAKES_FPR}, получен '${got_fpr}'"
-  gpg --dearmor --yes -o "${keyring}" "${tmp_key}" && chmod 0644 "${keyring}" && rm -f "${tmp_key}"
+  # во временном хранилище должен оказаться ровно один ключ с закреплённым отпечатком;
+  # в keyring apt экспортируется только он (лишние ключи из ответа сервера не попадут)
+  gpg --homedir "${gnupg_home}" --batch --quiet --import "${tmp_key}" 2>/dev/null || true
+  primary="$(gpg --homedir "${gnupg_home}" --batch --with-colons --list-keys 2>/dev/null \
+             | awk -F: '/^pub:/ {want=1; next} want && /^fpr:/ {print $10; want=0}')"
+  [[ "${primary}" == "${DEADSNAKES_FPR}" ]] \
+    || die "ключ PPA deadsnakes: ожидался один ключ ${DEADSNAKES_FPR}, получено: '${primary//$'\n'/ }'"
+  gpg --homedir "${gnupg_home}" --batch --export "${DEADSNAKES_FPR}" > "${keyring}"
+  chmod 0644 "${keyring}"
+  gpgconf --homedir "${gnupg_home}" --kill all 2>/dev/null || true
+  rm -rf "${gnupg_home}" "${tmp_key}"
   echo "deb [signed-by=${keyring}] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${VERSION_CODENAME} main" \
     > /etc/apt/sources.list.d/deadsnakes.list
   apt-get update -q

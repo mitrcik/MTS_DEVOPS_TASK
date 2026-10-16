@@ -73,12 +73,13 @@ if command -v docker >/dev/null 2>&1; then
     else
       pass "cgroup v${cgv}"
     fi
-    mem_gb=$(( mem / 1024 / 1024 / 1024 ))
+    mem_mib=$(( mem / 1024 / 1024 ))
+    mem_gb=$(( (mem + 536870912) / 1073741824 ))  # округление: ВМ «8 ГБ» видит ≈ 7,7 ГиБ
     if (( ncpu < 2 )); then fail "CPU для Docker: ${ncpu} (минимум 2, цель проекта 4)"
     elif (( ncpu < 4 )); then warns "CPU для Docker: ${ncpu} (цель проекта 4 vCPU; будет медленнее)"
     else pass "CPU для Docker: ${ncpu}"; fi
-    if (( mem_gb < 4 )); then fail "RAM для Docker: ${mem_gb} ГБ (минимум 4, цель 8)"
-    elif (( mem_gb < 7 )); then warns "RAM для Docker: ${mem_gb} ГБ (цель проекта 8 ГБ)"
+    if (( mem_mib < 3584 )); then fail "RAM для Docker: ${mem_gb} ГБ (минимум 4, цель 8)"
+    elif (( mem_mib < 7168 )); then warns "RAM для Docker: ${mem_gb} ГБ (цель проекта 8 ГБ)"
     else pass "RAM для Docker: ${mem_gb} ГБ"; fi
   else
     if grep -qi 'permission denied' <<<"${info}"; then
@@ -147,12 +148,13 @@ done
 # --- Сетевой доступ к источникам загрузок -----------------------------------
 check_url() {
   local name="$1" url="$2" code
-  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -I "${url}" 2>/dev/null || true)"
+  # -L: загрузки GitHub Releases и PyPI отдаются с других хостов (release-assets.githubusercontent.com …)
+  code="$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 15 -I "${url}" 2>/dev/null || true)"
   if [[ "${code}" =~ ^(2|3|401|403|405) ]]; then pass "доступен ${name}"; else warns "недоступен ${name} (${url}, HTTP ${code:-000})"; fi
 }
 if [[ ! -x "${LOCAL_DIR}/bin/helm" || ! -x "${LOCAL_DIR}/bin/trivy" ]]; then
   check_url "dl.k8s.io (kubectl)" "https://dl.k8s.io/release/stable.txt"
-  check_url "get.helm.sh (helm)" "https://get.helm.sh/"
+  check_url "get.helm.sh (helm)" "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz.sha256sum"
   check_url "GitHub Releases (k3d, sops, trivy, age)" "https://github.com/k3d-io/k3d/releases/download/v5.9.0/checksums.txt"
 fi
 check_url "PyPI (ansible-core, app deps)" "https://pypi.org/simple/ansible-core/"

@@ -357,6 +357,7 @@ def status(cfg: Config) -> int:
     print(
         f"  последний подтверждённый здоровый релиз: {active.get('release_id', '—')} "
         f"({active.get('version', '—')}, {active.get('digest', '')[:19]}…)"
+        + ("" if active.get("healthy", True) else " — НЕ подтверждён проверками")
     )
     print(f"  фаза: {state.get('phase')}; блокировка: {'занята' if kube.get_json('lease', LOCK_NAME) else 'свободна'}")
     rot = state.get("secret_rotation") or {}
@@ -369,7 +370,9 @@ def status(cfg: Config) -> int:
         )
     standby = state.get("standby") or {}
     if live and standby.get("slot") == other_slot(live):
-        if standby.get("healthy"):
+        # в слоте должен стоять именно тот релиз, что записан как резерв (слот могли перезаписать)
+        in_slot = (deployed_slot_info(kube, standby["slot"]) or {}).get("release_id")
+        if standby.get("healthy") and in_slot == standby.get("release_id"):
             print(
                 f"  резервный слот {standby['slot']}: подтверждённый ранее релиз {standby.get('release_id')} "
                 f"— пригоден для ручного возврата ({slot_release(standby['slot'])})"

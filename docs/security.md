@@ -62,7 +62,7 @@ Secret нет исходного токена. Ключ шифрования k3s
 |---|---|---|
 | Bootstrap (`make up`) | `.local/kube/admin.kubeconfig` (0600, cluster-admin k3d) — **только** на хосте стенда | создаёт кластер, namespace, RBAC, наблюдаемость, Secret Grafana |
 | Релизы, ротация, демо-алерт | `.local/kube/deploy.kubeconfig` (0600): ServiceAccount `release-controller`, токен TokenRequest со сроком 7 дней | только объекты `mts-app` |
-| GitHub Actions (CI) | `GITHUB_TOKEN`: `contents: read`; `packages: write` — только в job публикации и только при push | нет доступа к кластерам |
+| GitHub Actions (CI) | `GITHUB_TOKEN`: `contents: read`; `packages: write` — только у job `image`, а использует его только шаг публикации, который выполняется лишь при push (для PR шаг пропускается; PR из форков получают токен только на чтение) | нет доступа к кластерам |
 | GitHub Actions (CD, ветка по умолчанию) | SSH-ключ деплоя → forced command `deploy-gate.sh` | только `status` и `release < provenance.json` на удалённом стенде |
 
 Остаточные привилегии, о которых нужно знать: доступ к Docker на хосте эквивалентен root;

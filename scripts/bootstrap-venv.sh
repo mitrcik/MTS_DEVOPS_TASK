@@ -24,7 +24,7 @@ if [[ ! -x "${VENV}/bin/python" ]]; then
     || die "${PY_BIN} -m venv не работает: make prereqs (или sudo apt-get install -y python3-venv)"
 fi
 
-pip_args=(install --quiet --disable-pip-version-check --require-hashes --no-deps -r "${LOCK}")
+pip_args=(install --quiet --disable-pip-version-check --require-hashes --no-deps --only-binary=:all: -r "${LOCK}")
 if [[ -n "${EXTRA_CA_BUNDLE:-}" ]]; then
   pip_args+=(--cert "${EXTRA_CA_BUNDLE}")
 fi

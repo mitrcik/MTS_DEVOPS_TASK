@@ -1,6 +1,9 @@
 # shellcheck shell=bash
 # Общие функции bash-скриптов проекта. Подключение: source "$(dirname "$0")/lib.sh"
 set -Eeuo pipefail
+# Ansible не стартует с локалью, которой нет в системе (её часто передаёт SSH: LANG=ru_RU.UTF-8);
+# C.UTF-8 встроена в Ubuntu 22.04+ и сохраняет UTF-8 для вывода на русском.
+export LC_ALL=C.UTF-8
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOCAL_DIR="${ROOT_DIR}/.local"

@@ -323,25 +323,34 @@ class ReleaseController:
             return live
         warn(f"обнаружена прерванная операция {state.get('operation')} в фазе {phase}")
         self.report.event("recovering_interrupted_operation", phase=phase, operation=state.get("operation"))
-        last_healthy = state.get("active") or {}
-        if (
-            phase in ("switching", "observing", "rolling_back")
-            and last_healthy.get("slot")
-            and live != last_healthy["slot"]
-        ):
-            self._switch(last_healthy["slot"])
-            live = last_healthy["slot"]
+        # Возврат — на слот, обслуживавший пользователей до прерванной операции (previous_slot);
+        # state.active — запасной вариант для состояния, записанного до появления previous_slot.
+        target = state.get("previous_slot") or (state.get("active") or {}).get("slot")
+        switched = False
+        if target and live != target:
+            self._switch(target)
+            live, switched = target, True
+        target_info = deployed_slot_info(self.kube, target) if target else None
+        if target_info:
             # восстановление подтверждается на пользовательском пути, а не только селектором Service
-            seen = self._await_ingress_release(last_healthy.get("release_id", ""))
+            release_id = target_info.get("release_id", "")
+            seen = self._await_ingress_release(release_id)
             self.report.event(
-                "traffic_restored_to_last_healthy",
-                slot=live,
-                release_id=last_healthy.get("release_id"),
+                "traffic_restored_to_previous" if switched else "traffic_confirmed_on_previous",
+                slot=target,
+                release_id=release_id,
                 ingress_confirmed=seen,
             )
             if not seen:
-                raise RuntimeError("ingress не начал отдавать последний подтверждённый релиз за 30 с")
-            ok(f"трафик возвращён на слот {live}; ingress отдаёт {last_healthy.get('release_id')}")
+                raise RuntimeError(f"ingress не начал отдавать релиз {release_id} слота {target} за 30 с")
+            ok(f"трафик на слоте {target}; ingress отдаёт {release_id}")
+        # кандидат прерванной операции не прошёл проверки — резервный слот непригоден для возврата
+        cand = (state.get("candidate") or {}).get("slot")
+        if cand and cand != live:
+            prev_standby = state.get("standby") or {}
+            actual = deployed_slot_info(self.kube, cand)
+            if not (actual and actual.get("release_id") == prev_standby.get("release_id")):
+                state["standby"] = {**(actual or {"slot": cand}), "healthy": False}
         state["history"].append(
             {"release_id": state.get("operation"), "decision": "interrupted", "phase": phase, "at": iso(utcnow())}
         )
@@ -626,6 +635,15 @@ class ReleaseController:
 
     # ------------------------------------------------------------ decisions
     def _promote(self, state: dict, cand: str, prev_info: dict | None) -> str:
+        self.lock.check()
+        prev_active = state.get("active") or {}
+        # прежний слот пригоден для ручного возврата, только если в нём действительно
+        # подтверждённый релиз (а не, например, неудачный первый релиз)
+        prev_confirmed = bool(
+            prev_info
+            and prev_active.get("healthy", True)
+            and prev_info.get("release_id") == prev_active.get("release_id")
+        )
         state["active"] = {
             "slot": cand,
             "image": self.art.image,
@@ -636,7 +654,7 @@ class ReleaseController:
             "promoted_at": iso(utcnow()),
             "healthy": True,
         }
-        state["standby"] = {**prev_info, "healthy": True} if prev_info else None
+        state["standby"] = {**prev_info, "healthy": prev_confirmed} if prev_info else None
         self._close(state, "promoted", None)
         ok(f"релиз {self.release_id} продвинут: слот {cand} обслуживает пользователей")
         return self._finish("promoted", None)

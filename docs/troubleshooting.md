@@ -8,10 +8,18 @@
 | Симптом | Причина | Решение |
 |---|---|---|
 | `permission denied while trying to connect to the Docker daemon socket` | пользователь не в группе `docker` | `sudo usermod -aG docker $USER`, перелогиниться. Это эквивалент root-доступа к хосту |
-| `Cannot connect to the Docker daemon` | демон не запущен | `sudo systemctl enable --now docker` |
+| `Cannot connect to the Docker daemon` | демон не запущен или Docker не установлен | `make prereqs` либо `sudo systemctl enable --now docker` |
 | `toomanyrequests` / HTTP 429 при загрузке образов | анонимный лимит Docker Hub для IP | `docker login` или зеркало: в `/etc/docker/daemon.json` `{"registry-mirrors":["https://mirror.gcr.io"]}`, `sudo systemctl restart docker`; для узлов k3s — `DOCKERHUB_MIRROR=https://mirror.gcr.io` в `.env`, затем `make down && make up` |
 | `x509: certificate signed by unknown authority` при сборке/загрузке | корпоративный TLS-прокси | `EXTRA_CA_BUNDLE=/путь/к/полному/ca-bundle.crt` в `.env` (системные CA + CA прокси): он передаётся в сборку как BuildKit secret и монтируется в узел k3s |
-| `no space left on device` | мало места для образов | `docker system prune` (удалит неиспользуемые образы всех проектов — осторожно) или освободите место; проекту нужно ~6–8 ГБ |
+| `no space left on device` | мало места для образов | `docker system prune` (удалит неиспользуемые образы всех проектов — осторожно) или освободите место; проекту нужно ≈ 10 ГБ (измерено ≈ 9 ГБ после полного прогона; `make doctor` предупреждает, если для Docker свободно < 10 ГБ) |
+
+## Окружение и перезагрузка
+
+| Симптом | Решение |
+|---|---|
+| `ERROR: Ansible could not initialize the preferred locale: unsupported locale setting` | SSH передал локаль, которой нет в ВМ (например `LANG=ru_RU.UTF-8`). Скрипты проекта и `make` сами задают `LC_ALL=C.UTF-8`; при ручном запуске `ansible-playbook` выполните `export LC_ALL=C.UTF-8` |
+| `make status`/`make verify` сразу после перезагрузки: «кластер или инструмент недоступен» | k3s стартует 1–2 минуты после Docker (контейнеры стенда поднимаются сами, `restart: unless-stopped`). Повторите через минуту; если не помогло — `make up` |
+| `git не читает …` в `make doctor` | `make` запущен через `sudo` или не владельцем клона, либо проект скачан архивом без `.git`: запускайте от владельца `git clone` |
 
 ## Порты
 
@@ -26,7 +34,7 @@
 |---|---|
 | `Checksum mismatch` в роли `tools` | файл скачан не полностью или подменён: удалите `.local/downloads/<файл>` и повторите `make up`. Не меняйте sha256 в `infra/tools/tools.yml` без сверки с опубликованным checksum проекта |
 | нет доступа к `get.helm.sh`/GitHub Releases | `make doctor` покажет недоступный источник. Можно положить бинарник той же версии в `.local/bin` — роль проверит версию и не будет скачивать |
-| `python3 -m venv` не работает | `sudo apt-get install -y python3-venv` |
+| `python3 -m venv` не работает / нет Python ≥ 3.12 | `make prereqs` (на 22.04 ставит `python3.12` из PPA deadsnakes) или `PYTHON=/путь/к/python3.12` в `.env` |
 
 ## Кластер k3d
 
