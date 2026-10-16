@@ -1,48 +1,49 @@
 # Тестирование и приёмка
 
-Приоритет — опасные переходы релиза, бизнес-API, безопасность и воспроизводимость, а не число тестов.
+Тесты в первую очередь покрывают опасные переходы релиза, бизнес-API, безопасность и
+воспроизводимость. Число тестов здесь вторично.
 
-## Уровни
+## Уровни проверок
 
 | Уровень | Что проверяет | Где | Как запустить |
 |---|---|---|---|
-| Unit: приложение (26) | расчёт стоимости и округление, валидация (422), 401/404, Ready/не Ready, учебные неисправности детерминированы, перечитывание токенов при ротации, кардинальность меток, отсутствие токена в логах | `app/tests/` | `scripts/ci.sh test` (pytest в образе `target=test`, read-only FS, UID 10001) |
-| Unit: gate (17) | нет данных/NaN/пустой вектор/мало трафика/устаревшие серии → провал; доля ошибок, p95, доля трафика кандидата; ранняя остановка; определение момента переключения | `scripts/tests/test_gate.py` | `scripts/ci.sh test` |
-| Правила Prometheus (6 групп) | pending→firing→resolved пробы; алерт «нет данных»; доля 5xx с порогом трафика; нулевой трафик не даёт ложного алерта; p95 по histogram | `observability/tests/rules.test.yml` | `scripts/ci.sh validate` (`promtool test rules`) |
-| Статические проверки | ruff, yamllint, shellcheck, поиск секретов в Git и Trivy fs, `helm lint --strict` + JSON-схемы (отказ на тег вместо digest), `promtool check config`, `amtool check-config`, проверка дашборда и исключений Trivy | `scripts/ci.sh lint validate` | `make ci` |
-| Интеграция / приёмка (15 сценариев) | реальный стенд: см. ниже | `scripts/e2e.sh` | `make test-e2e` |
-| Совместимость с ВМ | `make prereqs` → `make doctor` → `make up` → 15 сценариев на Ubuntu 22.04 x86_64 и 24.04 aarch64 (чистые ВМ GitHub) и в окружениях Ubuntu 22.04/24.04/26.04; закрепления sha256 CLI против официальных файлов checksum (age их не публикует) | `.github/workflows/compat.yml` | вручную (workflow_dispatch), еженедельно и при изменении предпосылок; итоги — `docs/validation/compat.md` |
+| Unit: приложение (26) | Расчёт стоимости и округление, валидация (422), ответы 401/404, состояния Ready/не Ready, детерминированность учебных неисправностей, перечитывание токенов при ротации, кардинальность меток, отсутствие токена в логах | `app/tests/` | `scripts/ci.sh test` (pytest в образе `target=test`, read-only FS, UID 10001) |
+| Unit: gate (17) | Gate — автоматическая проверка релиза по метрикам. Нет данных, NaN, пустой вектор, мало трафика или устаревшие серии → провал. Также проверяются доля ошибок, p95, доля трафика кандидата, ранняя остановка и определение момента переключения | `scripts/tests/test_gate.py` | `scripts/ci.sh test` |
+| Правила Prometheus (6 групп) | Алерт пробы проходит pending → firing → resolved. Алерт «нет данных». Доля 5xx с порогом трафика. Нулевой трафик не даёт ложного алерта. p95 по histogram | `observability/tests/rules.test.yml` | `scripts/ci.sh validate` (`promtool test rules`) |
+| Статические проверки | ruff, yamllint, shellcheck, поиск секретов в Git и Trivy fs, `helm lint --strict` и JSON-схемы (тег вместо digest отклоняется), `promtool check config`, `amtool check-config`, проверка дашборда и исключений Trivy | `scripts/ci.sh lint validate` | `make ci` |
+| Интеграция / приёмка (15 сценариев) | Сквозные (E2E) проверки на реальном стенде, список ниже | `scripts/e2e.sh` | `make test-e2e` |
+| Совместимость с ВМ | Путь `make prereqs` → `make doctor` → `make up` → 15 сценариев. Проверен на чистых ВМ GitHub (Ubuntu 22.04 x86_64 и 24.04 aarch64) и в окружениях Ubuntu 22.04/24.04/26.04. Закреплённые sha256 CLI сверяются с официальными файлами checksum (age такие файлы не публикует) | `.github/workflows/compat.yml` | Вручную (workflow_dispatch), раз в неделю и при изменении предпосылок хоста. Итоги — `docs/validation/compat.md` |
 
 ## Приёмочные сценарии (`make test-e2e`)
 
-| # мастер-промпта | Сценарий | Что считается успехом |
+| № в мастер-промпте | Сценарий | Что считается успехом |
 |---|---|---|
-| 1 | `verify` | API через ingress, токен из SOPS, 401 без токена, все scrape targets up, проба = 1, правила загружены, Grafana и дашборд provisioned |
-| 2 | `idempotent-up` | отпечатки age-ключа, SOPS-источника и активного релиза совпадают до/после повторного `make up` |
-| 3 | `release` | решение `promoted`; ingress отдаёт новый release id; gate пройден |
-| 4 | `not-ready`, `not-ready-safe` | `rejected` до переключения; активна прежняя версия, `verify` проходит |
-| 5 | `rollback`, `rollback-safe` | кандидат Ready и прошёл preview, после переключения 5xx на пользовательском пути → `rolled_back`, восстановление подтверждено; `verify` на прежней версии |
-| 6 | `no-metrics` | при остановленном Prometheus релиз `rejected` (metrics_unavailable), Prometheus восстановлен |
-| 7 | `alert` | `MtsApiSyntheticProbeFailing`: pending → firing → получен Alertmanager (маршрут) → resolved |
-| 8 | `rotation-chain` | новый токен 200, старый 401 в каждом pod обоих слотов и через ingress; затем неудачный релиз → откат → отозванный токен по-прежнему 401 |
-| 9 | `security` | 17 проверок `verify-security` |
-| 10 | `concurrency` | при идущем релизе конкурирующие `rotate-secret` и релиз завершаются кодом 10 с именем держателя; основной релиз `promoted` |
-| — | `interrupted` | SIGTERM контроллеру в фазе `observing`: блокировка освобождена, фаза сохранена; `make recover` возвращает трафик на последний подтверждённый релиз; `verify` проходит |
-| 11 | `down-up`, `verify-again` | после `make down` нет контейнеров кластера; `make up` снова поднимает рабочий стенд |
-| 12 | удалённый pipeline | push запускает CI/публикацию/E2E (проверено, `docs/validation/github-actions.md`); доставка на постоянный стенд **не проверена** (нет хоста) |
+| 1 | `verify` | API отвечает через ingress с токеном из SOPS; без токена — 401; все цели сбора метрик (scrape targets) в состоянии up; проба = 1; правила загружены; Grafana и дашборд загружены автоматически (provisioned) |
+| 2 | `idempotent-up` | Отпечатки age-ключа, SOPS-источника и активного релиза совпадают до и после повторного `make up` |
+| 3 | `release` | Решение `promoted`; ingress отдаёт release id нового релиза; gate пройден |
+| 4 | `not-ready`, `not-ready-safe` | Решение `rejected` до переключения трафика; прежняя версия остаётся активной, `verify` проходит |
+| 5 | `rollback`, `rollback-safe` | Кандидат Ready и прошёл preview, но после переключения отдаёт 5xx на пользовательском пути → `rolled_back`, восстановление подтверждено; `verify` проходит на прежней версии |
+| 6 | `no-metrics` | При остановленном Prometheus релиз получает `rejected` (metrics_unavailable); после сценария Prometheus восстановлен |
+| 7 | `alert` | `MtsApiSyntheticProbeFailing`: pending → firing → Alertmanager получил алерт (маршрут) → resolved |
+| 8 | `rotation-chain` | Новый токен даёт 200, старый — 401 в каждом pod обоих слотов и через ingress. Затем неудачный релиз → откат → отозванный токен по-прежнему даёт 401 |
+| 9 | `security` | Проходят 17 проверок `verify-security` |
+| 10 | `concurrency` | Во время релиза конкурирующие `rotate-secret` и второй релиз завершаются с кодом 10 и называют держателя блокировки; основной релиз — `promoted` |
+| — | `interrupted` | Контроллер релизов получает SIGTERM в фазе `observing`: блокировка освобождена, фаза сохранена; `make recover` возвращает трафик на последний подтверждённый релиз; `verify` проходит |
+| 11 | `down-up`, `verify-again` | После `make down` контейнеров кластера нет; `make up` снова поднимает рабочий стенд |
+| 12 | удалённый pipeline | Push запускает CI, публикацию и E2E (проверено, `docs/validation/github-actions.md`). Доставка на постоянный стенд **не проверена**: нет хоста |
 
-Каждый сценарий пишет лог в `.local/e2e/<run>/<сценарий>.log` и сводку `summary.md`
-(время, код, последний отчёт). Отчёты релизов/ротации/алерта — `.local/reports/`.
+Каждый сценарий пишет лог в `.local/e2e/<run>/<сценарий>.log`. Сводка — в `summary.md`: время,
+код возврата, последний отчёт. Отчёты релизов, ротации и алерта лежат в `.local/reports/`.
 
 ## Замеры
 
-Время холодного запуска, повторного запуска, релиза и отката измеряется раздельно по отчётам
-(`durations.seconds_from_start`) и выводу `make`; монтаж видео в замеры не входит. Фактические
-значения — `docs/validation/local-e2e.md` и `docs/validation/github-actions.md`.
+Время холодного запуска, повторного запуска, релиза и отката измеряется отдельно. Источники —
+отчёты (`durations.seconds_from_start`) и вывод `make`. Монтаж видео в замеры не входит.
+Фактические значения — в `docs/validation/local-e2e.md` и `docs/validation/github-actions.md`.
 
 ## Как воспроизвести на своей машине
 
-Чистая ВМ с Ubuntu — сначала `make prereqs` (пошагово: `docs/vm-guide.md`).
+На чистой ВМ с Ubuntu сначала выполните `make prereqs` (пошагово — в `docs/vm-guide.md`).
 
 ```bash
 make up && make test-e2e          # ~15–17 минут вместе с make up; E2E_REBUILD=0 — без финального down/up

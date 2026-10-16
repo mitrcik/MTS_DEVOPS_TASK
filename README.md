@@ -1,34 +1,84 @@
-# Облачный DevOps-конвейер: от репозитория до production-Kubernetes за 3 команды
+# DevOps-конвейер: от репозитория до Kubernetes за 3 команды
 
-Кейс 1 МТС (DevOps). Воспроизводимый шаблон платформы доставки небольшого REST API:
-по изменению кода проходят тесты, сборка и сканирование образа; новая версия разворачивается
-**отдельно от рабочей**, проверяется, получает пользовательский трафик, а при деградации конвейер
-**сам возвращает трафик** на прежнюю здоровую версию и сохраняет отчёт о произошедшем.
+[![ci](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/workflows/ci.yml/badge.svg)](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/workflows/ci.yml)
+[![compat](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/workflows/compat.yml/badge.svg)](https://github.com/mitrcik/MTS_DEVOPS_TASK/actions/workflows/compat.yml)
+
+Команда **«Барни»** · кейс 1 конкурса DevOps МТС.
+
+Одна команда `make up` поднимает на обычной Ubuntu готовую платформу доставки: Kubernetes,
+CI-конвейер, мониторинг и алерты. Каждая новая версия сервиса проходит тесты и проверку
+уязвимостей. Затем она запускается **рядом с рабочей** и проверяется до и после переключения
+трафика. Если новая версия сломана, платформа **сама возвращает пользователей** на прежнюю версию
+и пишет отчёт о том, что произошло.
+
+![Итог make up](docs/images/make-up.png)
+
+## Быстрый старт
+
+Нужна Ubuntu 22.04, 24.04 или 26.04 (x86_64 или arm64), 4 vCPU, 8 ГБ RAM и 40 ГБ диска. Подойдёт
+обычная виртуальная машина. Пошаговая инструкция для ВМ — [`docs/vm-guide.md`](docs/vm-guide.md).
 
 ```bash
-git clone https://github.com/mitrcik/MTS_DEVOPS_TASK.git mts-devops
-cd mts-devops
+# один раз на чистой Ubuntu: Docker, Python и утилиты
+sudo apt-get update && sudo apt-get install -y git make
+git clone https://github.com/mitrcik/MTS_DEVOPS_TASK.git mts-devops && cd mts-devops
+make prereqs && newgrp docker
+
+# запуск стенда (3–6 минут при первом запуске)
 make up
 ```
 
-> Ветка по умолчанию репозитория — `claude/friendly-ride-7k6cyd`: обычный `git clone` получает её.
-> Чистая ВМ с Ubuntu (VirtualBox, VMware, Hyper-V, UTM, облако): пошагово —
-> [`docs/vm-guide.md`](docs/vm-guide.md) (`make prereqs` ставит Docker и Python).
+Если Docker, Python ≥ 3.12, git и make уже есть, хватает трёх команд: `git clone …`, `cd mts-devops`, `make up`.
 
-**Быстрый маршрут проверки для жюри** (после `make up`, ~5 минут без учёта ожидания):
+## Что посмотреть за 5 минут
 
-```bash
-make verify            # API через ingress, токен, Prometheus targets, алерты, Grafana — 14 проверок
-make release VERSION=v2    # обычный релиз: новый слот → проверки → переключение → promoted
-make demo-failure      # дефект после переключения → автоматический возврат трафика (rolled_back)
-make demo-alert        # реальный сбой → алерт firing → восстановление → resolved
-make rotate-secret     # ротация API-токена: новый работает во всех pod, старый отклоняется
-make verify-security   # non-root, read-only FS, NetworkPolicy, RBAC, шифрование Secret — 17 проверок
-make status            # активный слот, версии, история решений
-```
+| Команда | Что происходит | Время |
+|---|---|---|
+| `make verify` | 14 проверок работающего стенда: API, токен, метрики, алерты, Grafana | ~1 с |
+| `make release VERSION=v2` | новая версия: тесты → сборка → проверка уязвимостей → запуск рядом с рабочей → проверки → переключение трафика | ~75 с |
+| `make demo-failure` | версия с дефектом: после переключения появляются ошибки, трафик **автоматически возвращается** | ~45 с |
+| `make demo-alert` | настоящий сбой: алерт срабатывает, приходит в Alertmanager и снимается после восстановления | ~55 с |
+| `make rotate-secret` | замена API-токена без простоя: новый принимается, старый отклоняется | ~3 с |
+| `make verify-security` | 17 проверок защиты: non-root, read-only, сетевые политики, права, шифрование секретов | ~10 с |
+| `make status` | какая версия обслуживает пользователей и история решений | ~1 с |
 
-Полный приёмочный прогон: `make test-e2e` (15 сценариев). Матрица требований —
-[`docs/requirements.md`](docs/requirements.md), фактические результаты — [`docs/validation/`](docs/validation/).
+Все 15 приёмочных сценариев подряд: `make test-e2e` (10–13 минут). Удалить стенд: `make down`.
+
+## Как это выглядит
+
+**Выпуск новой версии.** Каждый этап виден, решение принимается по фактическим проверкам:
+
+![make release](docs/images/release.png)
+
+**Неудачная версия.** Дефект проявляется только на реальном трафике. Платформа замечает ошибки за
+2–3 секунды и возвращает пользователей на рабочую версию:
+
+![make demo-failure](docs/images/rollback.png)
+
+**Дашборд Grafana.** Видно, какой слот обслуживает трафик, всплеск ошибок у неудачной версии и
+моменты переключения:
+
+![Дашборд Grafana](docs/images/grafana.png)
+
+**Алерт.** Реальный сбой → алерт в Prometheus → уведомление в Alertmanager → восстановление:
+
+![Алерт в Prometheus](docs/images/prometheus-alert.png)
+
+![make demo-alert](docs/images/alert-terminal.png)
+
+## Что проверено
+
+- **15 из 15 приёмочных сценариев** на чистых виртуальных машинах GitHub: Ubuntu 24.04 x86_64 (на
+  каждый push), Ubuntu 22.04 x86_64 и Ubuntu 24.04 arm64. Ещё один прогон — в окружениях Ubuntu
+  22.04, 24.04 и 26.04 (пакеты и Python этих версий).
+- **Холодный запуск** `make up` на чистой ВМ — 3 мин 17 с – 3 мин 40 с; повторный — около 20 с, ничего
+  не меняет.
+- **Откат:** дефект замечается за 2–3 с после переключения, трафик возвращается на рабочую версию
+  за 0,4–0,5 с, после возврата — 85–88 запросов подряд без ошибок.
+- **Ресурсы:** пик памяти за полный прогон — около 2,2 ГиБ, на диске — около 9 ГБ.
+
+Подробности и отчёты — [`docs/validation/`](docs/validation/), матрица требований —
+[`docs/requirements.md`](docs/requirements.md).
 
 ---
 
@@ -38,25 +88,26 @@ make status            # активный слот, версии, история
 
 ## 2. Описание проблемы
 
-Типичный путь «код → прод» для микросервиса часто собран вручную: образ собирается на машине
-разработчика, тег `latest` перезаписывается, выкладка идёт поверх рабочей версии, а откат — это
-ручная операция после жалоб пользователей. Секреты лежат в открытом виде в конфигурации, метрики
-и алерты появляются позже, чем инциденты. Такой путь невоспроизводим и непрозрачен: нельзя
-доказать, что в production работает именно проверенный артефакт, и нельзя быстро и безопасно
-вернуться к рабочей версии.
+Путь кода в production часто собран вручную. Образ собирают на ноутбуке разработчика, тег `latest`
+перезаписывают, новую версию выкладывают поверх рабочей, а откатывают руками — после жалоб
+пользователей. Секреты лежат открытым текстом, а метрики и алерты появляются позже первых
+инцидентов. Такой процесс нельзя повторить и нельзя проверить: непонятно, какой именно артефакт
+работает в production и как быстро вернуться к рабочей версии.
 
 ## 3. Цель работы
 
-Сделать воспроизводимый за три команды стенд, где:
+Сделать стенд, который поднимается тремя командами и в котором:
 
 - каждое изменение проходит lint, тесты, проверку конфигурации, сборку, сканирование Trivy и
-  публикацию **ровно того же** артефакта по digest;
-- релиз — blue-green: новая версия разворачивается в неактивный слот, проверяется до и после
-  переключения трафика, а при деградации трафик автоматически возвращается;
-- секреты хранятся зашифрованными (SOPS + age), ротация проверяема;
-- есть метрики, дашборд, алерты и runbook, а каждый релиз оставляет отчёт из фактических данных.
+  публикацию **ровно того же** образа по его digest (уникальной контрольной сумме);
+- релиз устроен по схеме blue-green: есть два слота, новая версия запускается в свободном, проверяется
+  до и после переключения трафика, а при проблемах трафик автоматически возвращается;
+- секреты хранятся зашифрованными (SOPS + age), а их замену можно проверить;
+- есть метрики, дашборд, алерты и инструкции на случай инцидента, а каждый релиз оставляет отчёт.
 
 ## 4. Состав команды
+
+Команда **«Барни»**:
 
 | Участник |
 |---|
@@ -64,97 +115,109 @@ make status            # активный слот, версии, история
 | Рожков Иван Валерьевич |
 | Джумабаев Али |
 
-Роли и опыт участников в исходных данных не указаны; при необходимости участники дописывают их сами.
-
 ## 5. Архитектура
 
 ```mermaid
 flowchart LR
-  subgraph Host["Ubuntu 24.04: make up (Ansible)"]
+  subgraph Host["Ubuntu: make up (Ansible)"]
     CI["CI: lint → test → validate → build → Trivy → push"]
-    RC["release controller (bgctl)"]
+    RC["контроллер релизов (bgctl)"]
     S[("SOPS + age")]
   end
   REG[("registry 127.0.0.1:5001")]
   subgraph K["k3d / k3s v1.36.5"]
-    T["Traefik ingress<br/>127.0.0.1:8080"] --> SVC["Service mts-api-active<br/>(владелец — релиз traffic)"]
+    T["Traefik ingress<br/>127.0.0.1:8080"] --> SVC["Service mts-api-active"]
     SVC --> B["слот blue"]
     SVC -.-> G["слот green"]
     P["Prometheus · Alertmanager · Grafana · blackbox"]
   end
-  GH["GitHub Actions → GHCR → (SSH) удалённый стенд"]
+  GH["GitHub Actions → GHCR"]
   CI -->|digest + provenance| RC
   CI --> REG --> B & G
-  RC -->|"1. новый digest в неактивный слот<br/>2. preview 3. переключение<br/>4. gate 5. promote / откат"| SVC
-  RC -->|PromQL gate| P
+  RC -->|"1. новая версия в свободный слот<br/>2. проверки 3. переключение<br/>4. наблюдение 5. оставить / откатить"| SVC
+  RC -->|метрики| P
   S -.->|"хеши токенов (Secret)"| B & G
   U(["пользователь"]) --> T
-  P -->|scrape| B & G
+  P -->|сбор метрик| B & G
 ```
 
-Подробно (поток артефакта, машина состояний релиза, секреты, ограничения и путь к HA):
-[`docs/architecture.md`](docs/architecture.md). Решения и их основания: [`docs/decisions.md`](docs/decisions.md).
+Как устроен релиз:
 
-**Демо-приложение** (`app/`): синтетический каталог тарифов и расчёт месячной стоимости
-(данные условные, не тарифы МТС):
+1. CI собирает образ, проверяет его сканером Trivy и публикует по digest. Вместе с образом
+   сохраняется provenance — запись о том, что именно и с каким результатом проверялось.
+2. Контроллер релизов запускает новую версию в **свободном** слоте. Пользователи в это время
+   работают со старой версией.
+3. Каждый экземпляр новой версии проверяется напрямую: здоровье, версия, бизнес-методы, отказ без
+   токена, метрики. Prometheus должен видеть новую версию до переключения.
+4. Трафик переключается одним действием, после чего 30 секунд идут реальные запросы через ingress и
+   проверяются метрики. Если метрик нет, это считается провалом, а не успехом.
+5. Если всё в порядке, версия остаётся. Если нет, трафик возвращается на прежний слот и
+   восстановление подтверждается.
+
+Подробнее: [`docs/architecture.md`](docs/architecture.md), обоснование решений —
+[`docs/decisions.md`](docs/decisions.md).
+
+**Демо-приложение** (`app/`): учебный каталог тарифов и расчёт месячной стоимости (данные
+условные, это не тарифы МТС).
 
 | Метод | Назначение |
 |---|---|
-| `GET /api/v1/tariffs`, `GET /api/v1/tariffs/{id}` | каталог (публичный) |
-| `POST /api/v1/quotes` | расчёт стоимости; требует `Authorization: Bearer <токен>` из Kubernetes Secret; валидация ввода (422), неизвестный тариф (404) |
-| `GET /healthz`, `GET /readyz` | жизнеспособность / готовность |
+| `GET /api/v1/tariffs`, `GET /api/v1/tariffs/{id}` | каталог тарифов (без авторизации) |
+| `POST /api/v1/quotes` | расчёт стоимости; нужен заголовок `Authorization: Bearer <токен>`; неверный ввод — 422, неизвестный тариф — 404 |
+| `GET /healthz`, `GET /readyz` | процесс жив / готов принимать запросы |
 | `GET /version` | версия, Git SHA, время сборки, release id, слот |
-| `GET /metrics` | метрики Prometheus (метки — шаблоны маршрутов, без неограниченной кардинальности) |
+| `GET /metrics` | метрики Prometheus |
 
-Учебные неисправности зашиваются в образ при сборке (`FAULT=not-ready` / `errors-behind-ingress`),
-по умолчанию выключены и не управляются никаким endpoint.
+Учебные дефекты для демонстраций (`FAULT=not-ready`, `FAULT=errors-behind-ingress`) включаются
+только при сборке образа. По умолчанию они выключены, и включить их через API нельзя.
 
 ## 6. Использованные инструменты
 
-Версии зафиксированы 2026-10-15 по правилу «последний стабильный выпуск, опубликованный не позже
-2026-10-01» (D14). Всё, кроме системных предпосылок, ставится в `.local/` проекта.
+Версии зафиксированы 2026-10-15: берётся последний стабильный выпуск, опубликованный не позже
+2026-10-01 (решение D14). Всё, кроме Docker и Python, ставится внутрь проекта, в каталог `.local/`.
 
-| Инструмент | Версия | Источник установки и проверка |
+| Инструмент | Версия | Откуда и как проверяется |
 |---|---|---|
-| Ubuntu (хост) | 22.04 / 24.04 / 26.04 LTS, x86_64 или aarch64 | основной профиль — 24.04 x86_64; матрица проверок — [`docs/vm-guide.md`](docs/vm-guide.md) §8 |
-| Docker Engine + buildx | ≥ 24 (проверены Engine 29.8.2 в среде разработки и Docker CE 28.0.4 на ВМ GitHub; из пакетов Ubuntu `docker.io` 29.1.3 + `docker-buildx` 0.30.1 проверены CLI и buildx) | `make prereqs`: `docker.io` + `docker-buildx` из Ubuntu; установленный Docker CE не трогается |
-| Python (хост) | ≥ 3.12 (проверены 3.12, 3.13, 3.14) | `python3-venv` из Ubuntu; на 22.04 — `python3.12` из PPA deadsnakes (`make prereqs`) |
-| ansible-core / yamllint / ruff | 2.21.4 / 1.38.0 / 0.16.9 | PyPI, `pip --require-hashes` (`infra/tooling/requirements.lock`) |
-| k3d | 5.9.0 | GitHub Releases, sha256 из `checksums.txt` (amd64 и arm64 — для всех CLI ниже) |
-| k3s | v1.36.5+k3s1 | образ `rancher/k3s` (Docker Hub) |
-| kubectl | 1.36.5 | dl.k8s.io, `.sha256` |
-| Helm | 4.3.0 | get.helm.sh, `.sha256sum` |
+| Ubuntu | 22.04 / 24.04 / 26.04 LTS, x86_64 или arm64 | основной профиль — 24.04 x86_64; что проверено — [`docs/vm-guide.md`](docs/vm-guide.md), раздел 8 |
+| Docker Engine + buildx | ≥ 24 (проверены 29.8.2 и Docker CE 28.0.4; из пакетов Ubuntu `docker.io` 29.1.3 и `docker-buildx` 0.30.1 проверены CLI и buildx) | `make prereqs` ставит `docker.io` и `docker-buildx` из Ubuntu; уже установленный Docker CE не трогает |
+| Python | ≥ 3.12 (проверены 3.12, 3.13, 3.14) | `python3-venv` из Ubuntu; на 22.04 — `python3.12` из PPA deadsnakes (`make prereqs`) |
+| ansible-core / yamllint / ruff | 2.21.4 / 1.38.0 / 0.16.9 | PyPI, установка по хешам (`infra/tooling/requirements.lock`) |
+| k3d | 5.9.0 | GitHub Releases, sha256 из `checksums.txt` (для всех CLI — сборки amd64 и arm64) |
+| k3s | v1.36.5+k3s1 | образ `rancher/k3s` |
+| kubectl | 1.36.5 | dl.k8s.io, sha256 |
+| Helm | 4.3.0 | get.helm.sh, sha256 |
 | SOPS / age | 3.13.1 / 1.3.1 | GitHub Releases, sha256 |
-| Trivy | 0.75.0 (БД — mirror.gcr.io) | GitHub Releases, sha256 из `trivy_0.75.0_checksums.txt` |
+| Trivy | 0.75.0 (база уязвимостей — mirror.gcr.io) | GitHub Releases, sha256 |
 | Traefik | 3.7.13 | встроен в k3s |
-| Registry | 3.1.2 | `registry:3.1.2` (Docker Hub) |
-| Prometheus / Alertmanager | v3.13.4 / v0.34.1 | `prom/*` (Docker Hub) |
-| Grafana | 13.2.3 | `grafana/grafana` (Docker Hub) |
-| blackbox exporter | v0.28.0 | `prom/blackbox-exporter` |
-| Приложение | Python 3.13 на Alpine 3.24; FastAPI 0.142.2, uvicorn 0.54.0, prometheus-client 0.26.0, pydantic 2.13.5 | PyPI, `app/requirements.lock` (хеши) |
-| Тесты | pytest 9.1.1, httpx 0.28.1; shellcheck 0.11.0 (контейнер) | `app/requirements-dev.lock` |
+| Registry | 3.1.2 | образ `registry:3.1.2` |
+| Prometheus / Alertmanager | v3.13.4 / v0.34.1 | образы `prom/*` |
+| Grafana | 13.2.3 | образ `grafana/grafana` |
+| blackbox exporter | v0.28.0 | образ `prom/blackbox-exporter` |
+| Приложение | Python 3.13 на Alpine 3.24; FastAPI 0.142.2, uvicorn 0.54.0, prometheus-client 0.26.0, pydantic 2.13.5 | PyPI, установка по хешам (`app/requirements.lock`) |
+| Тесты | pytest 9.1.1, httpx 0.28.1; shellcheck 0.11.0 | `app/requirements-dev.lock`, контейнер |
 | GitHub Actions | checkout v7.0.1, upload-artifact v7.0.2, download-artifact v7.0.0 | закреплены по commit SHA |
 
-`make doctor` печатает фактические версии; таблица источников — `infra/tools/tools.yml`, `versions.env`.
+Фактические версии печатает `make doctor`; источники — `infra/tools/tools.yml` и `versions.env`.
 
 ## 7. Как запустить
 
-### Предпосылки хоста (однократно, требуют sudo)
+### Подготовка (один раз)
 
-На чистой Ubuntu 22.04 / 24.04 / 26.04 (в том числе на виртуальной машине — пошагово в
+На чистой Ubuntu 22.04 / 24.04 / 26.04, в том числе на виртуальной машине (подробно —
 [`docs/vm-guide.md`](docs/vm-guide.md)):
 
 ```bash
 sudo apt-get update && sudo apt-get install -y git make
 git clone https://github.com/mitrcik/MTS_DEVOPS_TASK.git mts-devops && cd mts-devops
-make prereqs        # Docker Engine + buildx, Python >= 3.12 с venv, curl, лимиты inotify
-newgrp docker       # или перелогиниться: доступ к Docker = привилегированный доступ к хосту
+make prereqs        # Docker + buildx, Python ≥ 3.12, лимиты inotify (спросит пароль sudo)
+newgrp docker       # или выйти из сеанса и войти снова
+make doctor         # проверка готовности; итог — «обязательные проверки пройдены»
 ```
 
-Ресурсы: цель проекта 4 vCPU / 8 ГБ RAM (фактически стенд занимает ≈ 1,6 ГиБ RAM в покое),
-40 ГБ диска у ВМ (проекту нужно ≈ 10 ГБ), интернет (Docker Hub, ghcr.io, GitHub Releases, dl.k8s.io,
-get.helm.sh, PyPI, mirror.gcr.io и их CDN; подробнее — [`docs/vm-guide.md`](docs/vm-guide.md) §1).
-Свободные порты на `127.0.0.1`: 8080 (ingress), 6550 (Kubernetes API), 5001 (registry). Правка `/etc/hosts`, домен, публичный IP и GitHub-токен **не нужны**.
+Нужно: 4 vCPU, 8 ГБ RAM (в покое стенд занимает около 1,6 ГиБ), 40 ГБ диска у ВМ (проекту нужно
+около 10 ГБ), доступ в интернет (Docker Hub, ghcr.io, GitHub, dl.k8s.io, get.helm.sh, PyPI, mirror.gcr.io;
+полный список — [`docs/vm-guide.md`](docs/vm-guide.md)). Свободные порты на `127.0.0.1`: 8080, 6550, 5001.
+Домен, публичный IP, правка `/etc/hosts` и токен GitHub **не нужны**.
 
 ### Три команды
 
@@ -164,124 +227,122 @@ cd mts-devops
 make up
 ```
 
-`make up` (идемпотентно, ограниченные таймауты, ненулевой код при ошибке):
+Что делает `make up` (повторный запуск безопасен):
 
-1. `doctor`: ОС, Docker/buildx, ресурсы, диск, порты, конфликтующие объекты, доступ к источникам;
-2. venv с ansible-core и линтерами (по хешам), CLI-инструменты в `.local/bin` (по sha256);
-3. age-ключ и зашифрованный SOPS-источник учебных секретов (только если их ещё нет);
-4. k3d-кластер с registry и шифрованием Secret, ожидание узла и Traefik;
-5. платформа: namespace с PSA, default-deny NetworkPolicy, RBAC релизов, ограниченный kubeconfig;
-6. наблюдаемость; ожидание готовности Prometheus, Alertmanager, Grafana;
-7. полный CI начальной версии `v1` и blue-green релиз (если здорового активного релиза ещё нет);
-8. smoke-проверка `bgctl verify` и итог: адреса, активный слот/версия/digest.
+1. проверяет хост (`make doctor`): ОС, Docker, ресурсы, диск, порты, доступ к источникам;
+2. ставит инструменты в `.local/` с проверкой контрольных сумм;
+3. создаёт age-ключ и зашифрованные учебные секреты (если их ещё нет);
+4. поднимает кластер k3d с registry и шифрованием секретов;
+5. настраивает платформу: Pod Security, сетевые политики, права для релизов;
+6. разворачивает мониторинг: Prometheus, Alertmanager, Grafana;
+7. собирает и выпускает первую версию `v1` через весь конвейер;
+8. проверяет стенд и печатает адреса.
 
-**Ожидаемый результат.** Последний блок вывода — адреса и `[ACTIVE ] blue версия=v1`.
-Холодный старт на чистом runner GitHub (Ubuntu 24.04): **3 мин 21–25 с** (3 прогона); повторный `make up` на
-работающем стенде ничего не меняет (≈ 20 с). Замеры — [`docs/validation/`](docs/validation/).
+В конце выводится сводка «Стенд готов» с адресами и активной версией (снимок — в начале README).
+Холодный запуск на чистой ВМ занимает 3 мин 17 с – 3 мин 40 с.
 
-| Адрес (только loopback) | Что |
+| Адрес (только на этом компьютере) | Что |
 |---|---|
-| http://127.0.0.1:8080/api/v1/tariffs | API (пользовательский путь); `/version`, `/docs` |
-| http://grafana.localhost:8080 | Grafana (логин `admin`, пароль: `make credentials`) |
-| http://prometheus.localhost:8080 | Prometheus (targets, alerts) |
+| http://127.0.0.1:8080/api/v1/tariffs | API; также `/version` и `/docs` |
+| http://grafana.localhost:8080 | Grafana (логин `admin`, пароль — `make credentials`) |
+| http://prometheus.localhost:8080 | Prometheus |
 | http://alertmanager.localhost:8080 | Alertmanager |
 
-Если браузер не резолвит `*.localhost`: `curl -H 'Host: grafana.localhost' http://127.0.0.1:8080/`.
-Токен API для ручных запросов — `make credentials` (выводится только по явной команде).
+Если стенд на ВМ без графики, откройте адреса через SSH-туннель:
+`ssh -L 8080:127.0.0.1:8080 <пользователь>@<IP ВМ>`.
 
 ### Все команды
 
 | Команда | Что делает |
 |---|---|
-| `make prereqs` | однократно на чистой Ubuntu: Docker + buildx, Python, git, make (через sudo) |
-| `make up` / `make doctor` | подготовка и запуск / диагностика без изменений |
-| `make ci` | все стадии CI локально (lint, test, validate, build, scan, push в registry стенда — нужен `make up`) |
-| `make verify` / `make verify-security` | проверка стенда / мер безопасности |
+| `make prereqs` | один раз на чистой Ubuntu: Docker + buildx, Python, утилиты (через sudo) |
+| `make up` / `make doctor` | запуск стенда / диагностика без изменений |
+| `make verify` / `make verify-security` | проверка стенда / проверка мер защиты |
 | `make release VERSION=v2` | выпуск новой версии через весь конвейер |
-| `make demo-failure` / `make demo-not-ready` / `make demo-no-metrics` | откат после переключения / отклонение до переключения / gate без метрик |
-| `make demo-alert` | алерт firing → resolved на реальном сбое |
-| `make rotate-secret` | ротация API-токена |
+| `make demo-failure` | версия с дефектом → автоматический откат |
+| `make demo-not-ready` | версия, которая не запускается → отказ до переключения |
+| `make demo-no-metrics` | Prometheus недоступен → релиз отклонён (без метрик нет успеха) |
+| `make demo-alert` | реальный сбой → алерт → восстановление |
+| `make rotate-secret` | замена API-токена |
 | `make recover` | восстановление после прерванного релиза |
-| `make status` / `make credentials` | состояние слотов и история / учебные учётные данные |
-| `make test-e2e` | 15 приёмочных сценариев (~10–13 мин) |
-| `make down` | удалить только кластер, registry и образы этого проекта; секреты и ключ сохраняются |
-| `make down PURGE=1 CONFIRM=yes` | дополнительно удалить SOPS-источник, age-ключ, отчёты (необратимо) |
+| `make status` / `make credentials` | состояние слотов и история / учебные пароль и токен |
+| `make ci` | все стадии CI локально (для публикации нужен работающий стенд) |
+| `make test-e2e` | 15 приёмочных сценариев (10–13 минут) |
+| `make down` | удалить кластер, registry и образы проекта; ключ и секреты сохраняются |
+| `make down PURGE=1 CONFIRM=yes` | удалить ещё и секреты, age-ключ и отчёты (необратимо) |
 
-Параметры (порты, имя кластера, окно и пороги gate, зеркала для особых сетей) — `.env`
-(создаётся из [`.env.example`](.env.example)).
+Настройки (порты, имя кластера, пороги проверок, зеркала для закрытых сетей) — в файле `.env`,
+он создаётся из [`.env.example`](.env.example).
 
-### Что сделано → где → как проверить → результат
+### Что сделано и как проверить
 
-| Возможность | Где | Как проверить | Ожидаемый результат |
+| Возможность | Где в коде | Как проверить | Ожидаемый результат |
 |---|---|---|---|
-| Подготовка чистой ВМ Ubuntu | `scripts/install-prereqs.sh`, [`docs/vm-guide.md`](docs/vm-guide.md) | `make prereqs` → `make doctor` | «предпосылки готовы», doctor без ошибок |
-| Запуск за 3 команды | `Makefile`, `infra/ansible/` | `make up` | итог с адресами, `[ACTIVE ] blue v1` |
-| CI по push | `.github/workflows/ci.yml`, `scripts/ci.sh` | вкладка Actions репозитория; локально `make ci` | все стадии `passed`, provenance |
-| Trivy-политика | `scripts/cihelper.py trivy-policy`, `.trivyignore.yaml` | `cat .local/artifacts/*/trivy-summary.json` | `result: passed`, версия и дата БД |
+| Подготовка чистой ВМ | `scripts/install-prereqs.sh` | `make prereqs` → `make doctor` | «предпосылки готовы», doctor без ошибок |
+| Запуск тремя командами | `Makefile`, `infra/ansible/` | `make up` | сводка «Стенд готов» |
+| CI на каждый push | `.github/workflows/ci.yml`, `scripts/ci.sh` | вкладка Actions; локально `make ci` | все стадии `passed` |
+| Политика Trivy | `scripts/cihelper.py`, `.trivyignore.yaml` | `cat .local/artifacts/*/trivy-summary.json` | `result: passed`, версия и дата базы |
 | Blue-green релиз | `charts/app`, `charts/traffic`, `scripts/pylib/release.py` | `make release VERSION=v2` | `promoted`, трафик на другом слоте |
-| Отклонение до переключения | то же | `make demo-not-ready` | `rejected`, `/version` — прежняя версия |
+| Отказ до переключения | то же | `make demo-not-ready` | `rejected`, пользователи на прежней версии |
 | Автоматический откат | то же | `make demo-failure` | `rolled_back`, восстановление подтверждено |
-| Gate без метрик не проходит | `scripts/pylib/gate.py` | `make demo-no-metrics` | `rejected: metrics_unavailable` |
-| Отчёт о релизе | `scripts/pylib/report.py` | `ls .local/reports/` | JSON + Markdown на каждый релиз |
-| Секреты SOPS + ротация | `scripts/pylib/secrets.py`, `rotation.py` | `make rotate-secret` | старый токен 401 во всех pod |
+| Без метрик нет успеха | `scripts/pylib/gate.py` | `make demo-no-metrics` | `rejected: metrics_unavailable` |
+| Отчёт о релизе | `scripts/pylib/report.py` | `ls .local/reports/` | JSON и Markdown на каждый релиз |
+| Секреты и их замена | `scripts/pylib/secrets.py`, `rotation.py` | `make rotate-secret` | старый токен отклоняется (401) во всех экземплярах |
 | Защита рантайма и сети | `charts/*` | `make verify-security` | 17/17 |
 | Дашборд и алерты | `observability/` | `make verify`, `make demo-alert` | 15 панелей; firing → resolved |
-| Конкурирующие операции | `scripts/pylib/lock.py` | сценарий `concurrency` в `make test-e2e` | второй запуск: отказ с кодом 10 |
-| Удаление | `scripts/down.sh` | `make down` | нет контейнеров с меткой кластера |
-| Совместимость: Ubuntu 22.04–26.04, x86_64/arm64 | `.github/workflows/compat.yml` | вкладка Actions → `compat` | все jobs зелёные, 15/15 сценариев в каждом окружении |
+| Защита от одновременных изменений | `scripts/pylib/lock.py` | сценарий `concurrency` в `make test-e2e` | второй запуск получает отказ (код 10) |
+| Удаление стенда | `scripts/down.sh` | `make down` | контейнеров кластера не осталось |
+| Совместимость Ubuntu 22.04–26.04, x86_64/arm64 | `.github/workflows/compat.yml` | вкладка Actions → `compat` | все задания зелёные, 15/15 в каждом окружении |
 
 ## 8. Мониторинг и наблюдаемость
 
-- **Сбор.** Prometheus снимает: приложение (каждые 5 с, метки `slot`/`version`/`pod`), синтетическую
-  пробу `GET /api/v1/tariffs` через Traefik (blackbox, 5 с), CPU/RAM контейнеров (kubelet cAdvisor,
-  TLS по CA кластера), Traefik, Grafana, Alertmanager. Конфигурация, правила и дашборд — код в
-  [`observability/`](observability/), datasource и дашборд подключаются provisioning'ом.
-- **Дашборд** «MTS DevOps — демо-API» (http://grafana.localhost:8080, домашний): доступность пробы,
-  доля 5xx, p50/p95/p99 по histogram, трафик по слотам (видно переключения и откаты; аннотации
-  «трафик → слот» и firing-алертов), версии и готовность экземпляров, CPU/RAM pod и стенда.
-  Снимок с реального стенда после релиза v6 и отката неудачного кандидата (всплеск 5xx у green):
-  [`docs/validation/grafana-dashboard.png`](docs/validation/grafana-dashboard.png).
+- **Что собирается.** Метрики приложения (каждые 5 с, с метками слота, версии и экземпляра);
+  синтетическая проба бизнес-метода `GET /api/v1/tariffs` через ingress (blackbox, каждые 5 с);
+  CPU и память контейнеров; метрики Traefik, Grafana и Alertmanager. Конфигурация, правила и дашборд
+  хранятся как код в [`observability/`](observability/).
+- **Дашборд** «MTS DevOps — демо-API» в Grafana: доступность, доля ошибок 5xx, задержки p50/p95/p99,
+  трафик по слотам с отметками переключений и алертов, версии экземпляров, ресурсы.
 - **Алерты** ([`observability/files/rules/mts-api.rules.yml`](observability/files/rules/mts-api.rules.yml)):
-  `MtsApiSyntheticProbeFailing` (critical — бизнес-метод недоступен через ingress 30 с),
-  `MtsApiSyntheticProbeAbsent` (нет данных пробы), `MtsApiHighErrorRate` (> 5% 5xx при трафике),
-  `MtsApiHighLatencyP95` (> 500 мс), `MtsApiTargetDown`. Маршрутизация Alertmanager: critical →
-  `team-oncall-critical`, остальное → `team-default`, подавление дублей. Runbook —
-  [`docs/runbooks.md`](docs/runbooks.md). Правила покрыты `promtool test rules`.
-- **Как вызвать и увидеть алерт:** `make demo-alert` масштабирует активный слот в 0, ждёт firing,
-  проверяет, что Alertmanager получил алерт, восстанавливает реплики и ждёт resolved; таймлайн —
-  в `.local/reports/alert-demo-*.json`. Фактически: pending 8 с → firing 38 с → resolved через ~10 с
-  после восстановления.
-- **Учебные SLI/SLO** (демо-профиль, без экстраполяции на месячный SLA): доступность бизнес-метода
-  по синтетической пробе ≥ 99% за 5 мин (`mts_api:probe_success:avg5m`); доля 5xx бизнес-запросов
-  < 1% (порог алерта 5%, порог gate 2%); p95 < 250 мс (алерт 500 мс). Пороги выбраны под
-  синтетический сервис без внешних зависимостей, где нормальный p95 ≈ 5–10 мс.
+  `MtsApiSyntheticProbeFailing` (critical: бизнес-метод недоступен через ingress 30 с),
+  `MtsApiSyntheticProbeAbsent` (нет данных пробы), `MtsApiHighErrorRate` (больше 5% ошибок 5xx),
+  `MtsApiHighLatencyP95` (p95 больше 500 мс), `MtsApiTargetDown`. Critical-алерты идут получателю
+  `team-oncall-critical`, остальные — `team-default`. Что делать по каждому алерту —
+  [`docs/runbooks.md`](docs/runbooks.md). Правила проверены `promtool test rules`.
+- **Как увидеть алерт:** `make demo-alert` останавливает экземпляры активной версии, ждёт
+  срабатывания алерта и его доставки в Alertmanager, затем восстанавливает сервис и ждёт снятия
+  алерта. В прогонах алерт срабатывал через 32–39 с после сбоя и снимался через 3–10 с после восстановления.
+- **Учебные цели качества (SLI/SLO):** доступность бизнес-метода ≥ 99% за 5 минут, ошибки 5xx < 1%
+  (порог алерта 5%, порог проверки релиза 2%), p95 < 250 мс (порог алерта 500 мс). Обычный p95
+  этого сервиса — 5–10 мс.
 
 ## 9. Безопасность
 
-Подробно и с командами проверки: [`docs/security.md`](docs/security.md).
+Подробно и с командами проверки — [`docs/security.md`](docs/security.md).
 
-- **Секреты:** SOPS + age; закрытый ключ вне проекта (`~/.config/mts-devops/<cluster>/age.key`, 0600),
-  зашифрованный источник — `.local/secrets/` (в `.gitignore`); plaintext не пишется на диск; в
-  кластер — `apply --server-side` из stdin; в Secret только SHA-256 токенов; k3s шифрует Secret в
-  своей базе (`--secrets-encryption`). Base64 — не шифрование, это учтено.
-- **Ротация:** `make rotate-secret` — перекрытие → проверка каждого pod обоих слотов → отзыв →
-  проверка; под общей с релизами блокировкой; откат на любой слот не возвращает отозванный токен.
-- **Рантайм:** PSA `restricted`, UID 10001, read-only root FS, `drop: [ALL]`, seccomp RuntimeDefault,
-  без токена ServiceAccount, requests/limits; образ Alpine без pip.
-- **Сеть:** default-deny NetworkPolicy; приложение принимает трафик только от Traefik и Prometheus,
-  выходит только в DNS — enforcement проверяется `make verify-security`; всё публикуется только на loopback.
-- **Права:** bootstrap — admin-kubeconfig k3d только на хосте; релизы — ServiceAccount
-  `release-controller` с Role в `mts-app` (без exec, узлов, других namespace); GitHub — минимальные
-  права на уровне job, действия по SHA, PR без публикации.
-- **Цепочка поставки:** sha256 всех загружаемых инструментов, lock-файлы с хешами, Trivy (HIGH/CRITICAL
-  с исправлением и секреты блокируют), деплой только по digest с provenance.
+- **Секреты:** SOPS + age. Закрытый ключ лежит вне проекта (`~/.config/mts-devops/<cluster>/age.key`,
+  права 0600), открытый текст на диск не пишется. В кластере хранятся только SHA-256 токенов, а k3s
+  дополнительно шифрует секреты в своей базе.
+- **Замена токена:** `make rotate-secret` — сначала новый токен добавляется к старому, затем он
+  проверяется во всех экземплярах обоих слотов, и только потом старый отзывается. Откат версии не
+  возвращает отозванный токен.
+- **Контейнеры:** Pod Security `restricted`, запуск не от root (UID 10001), файловая система только
+  для чтения, без лишних прав Linux, без токена Kubernetes.
+- **Сеть:** всё запрещено по умолчанию; приложение принимает запросы только от ingress и Prometheus
+  и само ходит только в DNS. Это проверяет `make verify-security`. Все адреса стенда открыты только
+  на `127.0.0.1`.
+- **Права:** администраторский доступ к кластеру используется только при подготовке; релизы идут от
+  отдельной учётной записи с правами в одном namespace. В GitHub Actions — минимальные права,
+  действия закреплены по SHA.
+- **Цепочка поставки:** контрольные суммы всех загружаемых инструментов, зависимости по хешам,
+  Trivy блокирует уязвимости HIGH/CRITICAL с исправлениями и секреты в образе, выкатывается только
+  проверенный digest.
 
 ## 10. Использование LLM
 
-Claude Code использовался для генерации кода, чартов, ролей, workflow и документации по
-мастер-промпту команды ([`docs/llm/master-prompt.md`](docs/llm/master-prompt.md)). Всё проверено
-инструментами и реальными запусками; runtime проекта от LLM не зависит. Экономия времени
-количественно не оценивалась (не было базового замера). Подробно: [`docs/llm-usage.md`](docs/llm-usage.md).
+Код, чарты, роли Ansible, workflow и документация писались с помощью Claude Code по мастер-промпту
+команды ([`docs/llm/master-prompt.md`](docs/llm/master-prompt.md)). Всё проверено инструментами и
+реальными запусками; сам стенд от LLM не зависит. Экономия времени не измерялась: не было замера
+«до». Подробно — [`docs/llm-usage.md`](docs/llm-usage.md).
 
 ## 11. Troubleshooting
 
@@ -289,44 +350,28 @@ Claude Code использовался для генерации кода, ча�
 
 | Симптом | Решение |
 |---|---|
-| `permission denied … docker.sock` | `sudo usermod -aG docker $USER`, перелогиниться |
-| порт 8080/6550/5001 занят | изменить `INGRESS_PORT`/`API_PORT`/`REGISTRY_PORT` в `.env`, `make down && make up` |
-| `toomanyrequests` (Docker Hub) | `docker login` или зеркало (`DOCKERHUB_MIRROR`, `registry-mirrors`) |
-| `x509` за корпоративным прокси | `EXTRA_CA_BUNDLE=/путь/ca-bundle.crt` в `.env` |
-| нет buildx / `--mount option requires BuildKit` | `sudo apt-get install -y docker-buildx` |
-| target `mts-api` down в Prometheus | runbook `MtsApiTargetDown` (NetworkPolicy/метки) |
-| pod не Ready: `api token hashes are not mounted` | нет Secret `api-auth` → `make up` |
+| `permission denied … docker.sock` | группа docker ещё не действует: `newgrp docker` или перелогиньтесь |
+| порт 8080, 6550 или 5001 занят | поменять `INGRESS_PORT` / `API_PORT` / `REGISTRY_PORT` в `.env`, затем `make down && make up` |
+| `toomanyrequests` от Docker Hub | `docker login` или зеркало (`DOCKERHUB_MIRROR` в `.env`) |
+| ошибки `x509` за корпоративным прокси | `EXTRA_CA_BUNDLE=/путь/ca-bundle.crt` в `.env` |
+| сразу после перезагрузки «кластер недоступен» | подождать 1–2 минуты (стенд поднимается сам), при необходимости `make up` |
 | `another operation … in progress` (Helm) | `make recover` |
-| релиз `rejected: metrics_unavailable` | Prometheus недоступен — это защитное поведение; `make verify` |
-| мало памяти | `replicas: 1` в `charts/app/values.yaml` |
+| релиз отклонён `metrics_unavailable` | Prometheus недоступен — это защитное поведение; проверьте `make verify` |
 
 ## 12. Лицензия
 
 [MIT](LICENSE) © 2026 Кутузов Дмитрий Сергеевич, Рожков Иван Валерьевич, Джумабаев Али.
-Выбрана как самая простая разрешительная лицензия для учебного шаблона (ведущий упоминал MIT
-как обычный выбор [37:47]; требованием конкурса это не является).
 
 ---
 
-### Проверено и ограничения
+### Ограничения
 
-Проверено реальными запусками (подробно — [`docs/validation/`](docs/validation/)):
+- Стенд однонодовый: это учебная платформа, а не отказоустойчивый production-кластер; HTTP без TLS
+  только на `127.0.0.1`.
+- Виртуальная машина не создаётся автоматически (Terraform, cloud-init). Организаторы разрешили
+  k3d с одной нодой вместо ВМ; готовая ВМ подготавливается командой `make prereqs`.
+- Доставка на постоянный удалённый стенд по SSH настроена, но не проверена: такого хоста у команды
+  нет ([`docs/remote-cd.md`](docs/remote-cd.md)).
+- Видео-демонстрация не записана; сценарий — [`docs/demo-script.md`](docs/demo-script.md).
 
-- чистые ВМ GitHub: Ubuntu 24.04 x86_64 — `make doctor` → `make up` → 15 приёмочных сценариев на каждый
-  push; Ubuntu 22.04 x86_64 и 24.04 aarch64 — `make prereqs` → `make up` → 15 сценариев
-  ([`compat.md`](docs/validation/compat.md)). На ВМ GitHub Docker CE предустановлен, поэтому
-  `make prereqs` там ставил Python и проверял Docker, а не устанавливал его;
-- пакеты Ubuntu 22.04 / 24.04 / 26.04 (Docker CLI `docker.io`, buildx, Python этих версий) в контейнере
-  с Docker хоста — тот же путь;
-- среда разработки (Ubuntu 24.04, 4 vCPU, 15 ГБ): все сценарии, маршрут жюри вручную, перезапуск Docker
-  (стенд восстанавливается сам) — [`local-e2e.md`](docs/validation/local-e2e.md).
-
-Сценарии: чистый и повторный запуск, релиз, отклонение неготового кандидата, откат после переключения,
-gate без метрик, алерт firing/resolved, ротация и цепочка «ротация → неудачный релиз → откат»,
-конкурирующие операции, прерванный релиз и восстановление, безопасность, удаление и повторный запуск.
-
-Ограничения: однонодовый стенд (не HA production); локальный HTTP без TLS; **ВМ не создаётся
-автоматически (Terraform/cloud-init)** — узел кластера заменён k3d по разрешению ВКС [24:27], а готовая
-ВМ подготавливается `make prereqs`; **CD на постоянный стенд по SSH реализован, но не проверен** (нет хоста,
-[`docs/remote-cd.md`](docs/remote-cd.md)); видео-демо не записано ([`docs/demo-script.md`](docs/demo-script.md)).
-Материалы к защите: [`docs/defense-notes.md`](docs/defense-notes.md).
+Материалы к защите — [`docs/defense-notes.md`](docs/defense-notes.md).

@@ -103,5 +103,15 @@ def run_demo(cfg: Config, timeout: float = 240) -> int:
     report.finish(
         "firing_and_resolved" if complete else "incomplete", None if complete else f"наблюдаемые этапы: {sorted(marks)}"
     )
-    log(f"хронология (с от начала сбоя): {report.data['timeline_seconds_from_fault']} [{iso(utcnow())}]")
+    names = {
+        "fault_injected": "сбой",
+        "pending": "pending",
+        "firing": "firing",
+        "alertmanager_received": "Alertmanager",
+        "restored": "восстановление",
+        "resolved": "resolved",
+    }
+    steps = report.data["timeline_seconds_from_fault"]
+    chain = " → ".join(f"{names.get(k, k)} {v:g} с" for k, v in steps.items())
+    log(f"хронология от начала сбоя: {chain} [{iso(utcnow())}]")
     return 0 if complete else 1

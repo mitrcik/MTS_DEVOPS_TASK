@@ -28,7 +28,8 @@ venv: ## Python venv с закреплёнными ansible-core/yamllint/ruff (�
 
 .PHONY: up
 up: .env venv ## Подготовка и запуск всего стенда (идемпотентно)
-	@t0=$$(date +%s); $(PLAYBOOK) infra/ansible/up.yml; echo "make up: $$(( $$(date +%s) - t0 )) с"
+	@t0=$$(date +%s); $(PLAYBOOK) infra/ansible/up.yml; dt=$$(( $$(date +%s) - t0 )); \
+	  echo "make up: $${dt} с"; scripts/summary.sh "$${dt}"
 
 .PHONY: doctor
 doctor: ## Диагностика предпосылок хоста (ничего не меняет)

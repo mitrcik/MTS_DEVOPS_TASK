@@ -595,7 +595,9 @@ class ReleaseController:
         )
         return res
 
-    def _metrics_gate(self, cand: str, pods: list[str], start: float, wait: bool = True) -> GateResult:
+    def _metrics_gate(
+        self, cand: str, pods: list[str], start: float, wait: bool = True, evidence: bool = False
+    ) -> GateResult:
         if wait:
             time.sleep(self.scrape_wait)  # последние запросы окна должны попасть в scrape
         at = time.time()
@@ -630,7 +632,11 @@ class ReleaseController:
             snap = MetricsSnapshot(available=False, error=str(exc))
         res = evaluate_metrics(snap, set(pods), self.t)
         res.details["range_seconds"] = rng
-        (ok if res.passed else fail)(f"metrics gate: {'пройден' if res.passed else res.reasons}")
+        if evidence:  # после возврата трафика: только запись в отчёт, на решение не влияет
+            seen = round(res.details.get("requests") or 0)
+            log(f"метрики кандидата за окно наблюдения записаны в отчёт: ≈{seen} запросов")
+        else:
+            (ok if res.passed else fail)(f"metrics gate: {'пройден' if res.passed else res.reasons}")
         return res
 
     # ------------------------------------------------------------ decisions
@@ -712,7 +718,7 @@ class ReleaseController:
         # Доказательства из Prometheus снимаются уже после возврата трафика (не задерживают его):
         # видны ли ошибки кандидата в метриках, независимо от собственных HTTP-проб контроллера.
         if pods and cutover:
-            evidence = self._metrics_gate(cand, pods, cutover, wait=False)
+            evidence = self._metrics_gate(cand, pods, cutover, wait=False, evidence=True)
             self.report.check(
                 "metrics_evidence_after_rollback",
                 "recorded",
