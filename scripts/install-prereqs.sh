@@ -49,7 +49,7 @@ if [[ "$(printf '%s\n' 3.12 "${py_mm}" | sort -V | head -1)" == "3.12" ]]; then
 else
   # Ubuntu 22.04: системный Python 3.10, а ansible-core 2.21 требует >= 3.12
   use_deadsnakes=true
-  pkgs+=(python3 software-properties-common)
+  pkgs+=(python3 gpg)
 fi
 
 # --- Docker Engine + buildx -------------------------------------------------
@@ -65,9 +65,20 @@ fi
 log "устанавливаю пакеты: ${pkgs[*]}"
 apt_install "${pkgs[@]}"
 
+# PPA deadsnakes подключается с проверкой отпечатка ключа (сверен с Launchpad и keyserver.ubuntu.com)
+DEADSNAKES_FPR="F23C5A6CF475977595C89F51BA6932366A755776"
 if ${use_deadsnakes}; then
   log "Python ${py_mm} в Ubuntu ${VERSION_ID} старше нужного: python3.12 из PPA deadsnakes"
-  add-apt-repository -y ppa:deadsnakes/ppa
+  keyring=/etc/apt/keyrings/deadsnakes.gpg
+  install -m 0755 -d /etc/apt/keyrings
+  tmp_key="$(mktemp)"
+  curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x${DEADSNAKES_FPR}" -o "${tmp_key}"
+  got_fpr="$(gpg --show-keys --with-colons "${tmp_key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}')"
+  [[ "${got_fpr}" == "${DEADSNAKES_FPR}" ]] \
+    || die "ключ PPA deadsnakes: ожидался отпечаток ${DEADSNAKES_FPR}, получен '${got_fpr}'"
+  gpg --dearmor --yes -o "${keyring}" "${tmp_key}" && chmod 0644 "${keyring}" && rm -f "${tmp_key}"
+  echo "deb [signed-by=${keyring}] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${VERSION_CODENAME} main" \
+    > /etc/apt/sources.list.d/deadsnakes.list
   apt-get update -q
   apt_install python3.12 python3.12-venv
 fi
