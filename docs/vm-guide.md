@@ -43,7 +43,7 @@ make doctor        # итог: «doctor: обязательные проверк
 make up
 ```
 
-Первый запуск — 3–6 минут (на чистом runner GitHub — 3 мин 21–25 с), дольше при медленном интернете:
+Первый запуск — 3–6 минут (на чистых ВМ GitHub — 3 мин 17 с – 3 мин 40 с), дольше при медленном интернете:
 скачиваются инструменты (с проверкой sha256), образы k3s, Prometheus, Grafana и база Trivy,
 собирается и сканируется образ приложения, выполняется первый blue-green релиз `v1`.
 Последний блок вывода — адреса и состояние слотов:
@@ -69,7 +69,7 @@ make up
 | `make rotate-secret` | ~3 с | новый токен работает во всех pod обоих слотов, старый отклоняется (401) |
 | `make verify-security` | ~10 с | 17 проверок: non-root, read-only FS, NetworkPolicy, RBAC, шифрование Secret |
 | `make status` | ~1 с | активный слот, версии, история решений |
-| `make test-e2e` | ~11–13 мин | все 15 приёмочных сценариев подряд, итог `все сценарии пройдены` |
+| `make test-e2e` | ~10–13 мин | все 15 приёмочных сценариев подряд, итог `все сценарии пройдены` |
 
 Отчёт каждого релиза — `.local/reports/release-*.md` (и `.json`): решение, причина, проверки,
 метрики, длительности. Если команда завершилась не так, как в таблице, — `make status` и
@@ -128,10 +128,12 @@ Chrome, Firefox и Edge сами направляют `*.localhost` на `127.0.
 
 | Окружение | Как | Результат |
 |---|---|---|
-| Ubuntu 24.04 x86_64, чистая ВМ | GitHub-hosted runner, `make doctor` → `make up` → 15 сценариев (`ci.yml`, job e2e) | см. `docs/validation/github-actions.md` |
-| Ubuntu 22.04 x86_64, чистая ВМ | runner `ubuntu-22.04`: `make prereqs` → … → 15 сценариев (`compat.yml`) | см. `docs/validation/compat.md` |
-| Ubuntu 24.04 aarch64 (arm64), чистая ВМ | runner `ubuntu-24.04-arm`: `make prereqs` → … → 15 сценариев | см. `docs/validation/compat.md` |
-| Ubuntu 22.04 / 24.04 / 26.04 — пакеты и окружение | контейнер `ubuntu:<версия>` с Docker хоста: `make prereqs` ставит Docker CLI, buildx, Python из архивов Ubuntu; дальше полный путь | см. `docs/validation/compat.md` |
+| Ubuntu 24.04 x86_64, чистая ВМ | GitHub-hosted runner: `make doctor` → `make up` → 15 сценариев (`ci.yml`, на каждый push) | ✅ 15/15 (`docs/validation/github-actions.md`) |
+| Ubuntu 22.04 x86_64, чистая ВМ | runner `ubuntu-22.04`: `make prereqs` (python3.12 из deadsnakes) → … → 15 сценариев (`compat.yml`) | ✅ 15/15, `make up` 3 мин 22 с (`docs/validation/compat.md`) |
+| Ubuntu 24.04 aarch64 (arm64), чистая ВМ | runner `ubuntu-24.04-arm`: `make prereqs` → … → 15 сценариев | ✅ 15/15, `make up` 3 мин 17 с |
+| Ubuntu 22.04 / 24.04 / 26.04 — пакеты и окружение | контейнер `ubuntu:<версия>` с Docker хоста: `make prereqs` ставит docker.io, buildx, Python из архивов Ubuntu; дальше полный путь | ✅ 15/15 в каждом (Python 3.12 / 3.12 / 3.14) |
+| Ubuntu 24.04, среда разработки | маршрут из раздела 4 вручную, перезапуск Docker («перезагрузка») | ✅ все команды; после перезапуска `verify` 14/14 через 34 с (`docs/validation/local-e2e.md`) |
 
-Не проверялось: настоящая ВМ с Ubuntu 26.04 (проверено окружение 26.04 в контейнере на ядре
-Ubuntu 24.04), ВМ с 2 vCPU, WSL2.
+Пиковая память хоста за `make up` + 15 сценариев — около 2,2 ГиБ; место на диске после полного
+прогона — около 9 ГБ. Не проверялось: настоящая ВМ с Ubuntu 26.04 (проверено окружение 26.04 в
+контейнере на ядре Ubuntu 24.04), ВМ с 2 vCPU или 4 ГБ RAM, WSL2, Docker из snap.

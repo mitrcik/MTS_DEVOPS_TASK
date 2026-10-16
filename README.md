@@ -203,7 +203,7 @@ make up
 | `make rotate-secret` | ротация API-токена |
 | `make recover` | восстановление после прерванного релиза |
 | `make status` / `make credentials` | состояние слотов и история / учебные учётные данные |
-| `make test-e2e` | 15 приёмочных сценариев (~11–13 мин) |
+| `make test-e2e` | 15 приёмочных сценариев (~10–13 мин) |
 | `make down` | удалить только кластер, registry и образы этого проекта; секреты и ключ сохраняются |
 | `make down PURGE=1 CONFIRM=yes` | дополнительно удалить SOPS-источник, age-ключ, отчёты (необратимо) |
 
@@ -214,6 +214,7 @@ make up
 
 | Возможность | Где | Как проверить | Ожидаемый результат |
 |---|---|---|---|
+| Подготовка чистой ВМ Ubuntu | `scripts/install-prereqs.sh`, [`docs/vm-guide.md`](docs/vm-guide.md) | `make prereqs` → `make doctor` | «предпосылки готовы», doctor без ошибок |
 | Запуск за 3 команды | `Makefile`, `infra/ansible/` | `make up` | итог с адресами, `[ACTIVE ] blue v1` |
 | CI по push | `.github/workflows/ci.yml`, `scripts/ci.sh` | вкладка Actions репозитория; локально `make ci` | все стадии `passed`, provenance |
 | Trivy-политика | `scripts/cihelper.py trivy-policy`, `.trivyignore.yaml` | `cat .local/artifacts/*/trivy-summary.json` | `result: passed`, версия и дата БД |
@@ -227,6 +228,7 @@ make up
 | Дашборд и алерты | `observability/` | `make verify`, `make demo-alert` | 15 панелей; firing → resolved |
 | Конкурирующие операции | `scripts/pylib/lock.py` | сценарий `concurrency` в `make test-e2e` | второй запуск: отказ с кодом 10 |
 | Удаление | `scripts/down.sh` | `make down` | нет контейнеров с меткой кластера |
+| Совместимость: Ubuntu 22.04–26.04, x86_64/arm64 | `.github/workflows/compat.yml` | вкладка Actions → `compat` | все jobs зелёные, 15/15 сценариев в каждом окружении |
 
 ## 8. Мониторинг и наблюдаемость
 
@@ -308,13 +310,20 @@ Claude Code использовался для генерации кода, ча�
 
 ### Проверено и ограничения
 
-Проверено реальными запусками (Ubuntu 24.04, 4 vCPU, 16 ГБ; GitHub-hosted runner `ubuntu-24.04`):
-чистый и повторный запуск, релиз, отклонение неготового кандидата, откат после переключения,
+Проверено реальными запусками (подробно — [`docs/validation/`](docs/validation/)):
+
+- чистые ВМ GitHub: Ubuntu 24.04 x86_64 (на каждый push), Ubuntu 22.04 x86_64 и Ubuntu 24.04 aarch64 —
+  `make prereqs` → `make up` → 15 приёмочных сценариев ([`compat.md`](docs/validation/compat.md));
+- пакеты и окружение Ubuntu 22.04 / 24.04 / 26.04 (Docker и Python этих версий) в контейнере — тот же путь;
+- среда разработки (Ubuntu 24.04, 4 vCPU, 15 ГБ): все сценарии, маршрут жюри вручную, перезапуск Docker
+  (стенд восстанавливается сам) — [`local-e2e.md`](docs/validation/local-e2e.md).
+
+Сценарии: чистый и повторный запуск, релиз, отклонение неготового кандидата, откат после переключения,
 gate без метрик, алерт firing/resolved, ротация и цепочка «ротация → неудачный релиз → откат»,
 конкурирующие операции, прерванный релиз и восстановление, безопасность, удаление и повторный запуск.
 
-Ограничения: однонодовый стенд (не HA production); локальный HTTP без TLS; **профиль ВМ
-(Terraform/KVM/OpenStack) не реализован** — заменён k3d по разрешению ВКС [24:27]; **CD на
-постоянный стенд по SSH реализован, но не проверен** (нет хоста, [`docs/remote-cd.md`](docs/remote-cd.md));
-видео-демо не записано ([`docs/demo-script.md`](docs/demo-script.md)); состав команды и лицензия —
-за командой. Материалы к защите: [`docs/defense-notes.md`](docs/defense-notes.md).
+Ограничения: однонодовый стенд (не HA production); локальный HTTP без TLS; **ВМ не создаётся
+автоматически (Terraform/cloud-init)** — узел кластера заменён k3d по разрешению ВКС [24:27], а готовая
+ВМ подготавливается `make prereqs`; **CD на постоянный стенд по SSH реализован, но не проверен** (нет хоста,
+[`docs/remote-cd.md`](docs/remote-cd.md)); видео-демо не записано ([`docs/demo-script.md`](docs/demo-script.md)).
+Материалы к защите: [`docs/defense-notes.md`](docs/defense-notes.md).
