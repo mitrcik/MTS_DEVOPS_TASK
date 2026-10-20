@@ -164,7 +164,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\",status=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\"}[1m]))",
+          "expr": "(sum(rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\",status=~\"5..\"}[1m])) or vector(0)) / (sum(rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\"}[1m])) > 0)",
           "legendFormat": ""
         }
       ],
@@ -439,7 +439,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (slot) (rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\",status=~\"5..\"}[1m])) / sum by (slot) (rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\"}[1m]))",
+          "expr": "(sum by (slot) (rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\",status=~\"5..\"}[1m])) or 0 * sum by (slot) (rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\"}[1m]))) / (sum by (slot) (rate(http_requests_total{job=\"mts-api\",route=~\"/api/v1/.*\"}[1m])) > 0)",
           "legendFormat": "{{slot}}"
         }
       ],
