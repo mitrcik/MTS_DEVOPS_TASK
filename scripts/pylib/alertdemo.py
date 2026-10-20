@@ -43,6 +43,9 @@ def run_demo(cfg: Config, timeout: float = 240) -> int:
                 raise RuntimeError("нет активного слота")
             deploy = slot_release(slot)
             replicas = int(kube.get_json("deployment", deploy)["spec"]["replicas"])
+            # HOLD=N: сбой держится ещё N с после доставки алерта, чтобы на показе успеть открыть
+            # Prometheus, Alertmanager и Grafana; значение проверяется до внесения сбоя
+            hold = max(0.0, cfg.num("ALERT_HOLD_SECONDS", 0))
             if _alert_state(prom):
                 raise RuntimeError(f"{ALERT} уже активен — дождитесь resolved перед демонстрацией")
             try:
@@ -73,6 +76,13 @@ def run_demo(cfg: Config, timeout: float = 240) -> int:
                         )
                         ok(f"Alertmanager получил алерт, маршрут → {receivers}")
                     time.sleep(2)
+                if hold and "alertmanager_received" in marks:
+                    log(f"держу сбой ещё {hold:g} с: алерт виден в Prometheus, Alertmanager и Grafana")
+                    report.event("fault_held", seconds=hold)
+                    end = time.time() + hold
+                    while time.time() < end:
+                        lock.check()
+                        time.sleep(min(2.0, max(0.0, end - time.time())))
             finally:
                 log(f"восстановление: возвращаю {deploy} к {replicas} репликам")
                 kube.kubectl("scale", "deployment", deploy, f"--replicas={replicas}")

@@ -104,11 +104,11 @@ make up
 | Команда | Время | Ожидаемый результат |
 |---|---|---|
 | `make verify` | ~1 с | 14 проверок `[ OK ]`: API через ingress, ответ 401 без токена, расчёт с токеном, Prometheus targets, правила алертов, Grafana |
-| `make release VERSION=v2` | ~75 с | Полный CI → кандидат в неактивном слоте → preview → переключение → окно наблюдения → решение `promoted`. `make status` показывает `[ACTIVE ] green версия=v2` |
+| `make release VERSION=v2` | 75–120 с | Полный CI → кандидат в неактивном слоте → preview → переключение → окно наблюдения → решение `promoted`. `make status` показывает `[ACTIVE ] green версия=v2` |
 | `make demo-failure` | ~45 с | Версия с дефектом проходит preview, но после переключения отвечает 5xx. Трафик **автоматически возвращается** на прежний слот, решение `rolled_back`. Активной остаётся v2 |
 | `make demo-not-ready` | ~75 с | Кандидат не становится Ready → решение `rejected` **до** переключения. Пользователи не затронуты |
 | `make demo-no-metrics` | ~30 с | Prometheus временно выключен → релиз `rejected`: нет метрик — значит, нет и подтверждения успеха. Затем Prometheus возвращается |
-| `make demo-alert` | ~55 с | Реальный сбой → алерт `MtsApiSyntheticProbeFailing` проходит pending → firing → Alertmanager → восстановление → resolved |
+| `make demo-alert` | ~55 с | Реальный сбой → алерт `MtsApiSyntheticProbeFailing` проходит pending → firing → Alertmanager → восстановление → resolved. На показе: `make demo-alert HOLD=60` держит сбой ещё 60 с после доставки алерта — успеете открыть Prometheus, Alertmanager и Grafana |
 | `make rotate-secret` | ~3 с | Новый токен работает во всех pod обоих слотов, старый отклоняется (401) |
 | `make verify-security` | ~10 с | 17 проверок: non-root, read-only FS, NetworkPolicy, RBAC, шифрование Secret |
 | `make status` | ~1 с | Активный слот, версии, история решений |

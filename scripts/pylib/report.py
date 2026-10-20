@@ -60,6 +60,16 @@ def _fmt(value) -> str:
     return str(value)
 
 
+def _cell(value, limit: int = 400) -> str:
+    """Ячейка Markdown-таблицы: обрезка внутри code span и экранирование «|» (иначе таблица ломается)."""
+    if isinstance(value, (dict, list)):
+        text = json.dumps(value, ensure_ascii=False)
+        if len(text) > limit:
+            text = text[:limit] + "…"
+        return "`" + text.replace("|", "\\|") + "`"
+    return _fmt(value).replace("|", "\\|")
+
+
 def render_markdown(d: dict) -> str:
     lines = [
         f"# Отчёт: {d['kind']} `{d['id']}`",
@@ -102,7 +112,7 @@ def render_markdown(d: dict) -> str:
         lines += ["", "## Проверки", "", "| проверка | статус | детали |", "|---|---|---|"]
         for name, c in d["checks"].items():
             extra = {k: v for k, v in c.items() if k not in ("status", "at")}
-            lines.append(f"| {name} | **{c['status']}** | {_fmt(extra)[:400]} |")
+            lines.append(f"| {name} | **{c['status']}** | {_cell(extra)} |")
     if d.get("rollback"):
         lines += ["", "## Возврат трафика", "", f"{_fmt(d['rollback'])}"]
     if d.get("tools"):

@@ -33,7 +33,7 @@
 |---|---|---|---|---|
 | Кейс, п. 2: запуск по push | GitHub Actions запускается на push в любую ветку и на PR | `.github/workflows/ci.yml` | прогоны Actions (`docs/validation/github-actions.md`) | ✅ |
 | Кейс, п. 2: линт | ruff (app, scripts), yamllint, shellcheck, поиск секретов | `scripts/ci.sh lint` | `make ci` | ✅ |
-| Кейс, п. 2: unit-тесты | pytest (26 тестов) в образе `target=test`; unittest для gate (17 тестов) | `app/tests/`, `scripts/tests/` | `scripts/ci.sh test` | ✅ |
+| Кейс, п. 2: unit-тесты | pytest (26 тестов) в образе `target=test`; unittest для gate (17 тестов) и отчёта о релизе (1) | `app/tests/`, `scripts/tests/` | `scripts/ci.sh test` | ✅ |
 | Проект: проверка конфигурации | helm lint и JSON-схемы, promtool check/test, amtool, проверка дашборда и исключений Trivy | `scripts/ci.sh validate` | `scripts/ci.sh validate` | ✅ |
 | Кейс, п. 2: сборка Docker-образа | Многостадийный Dockerfile. Приложение работает от UID 10001, в итоговом образе нет pip | `app/Dockerfile` | `scripts/ci.sh build` | ✅ |
 | Кейс, п. 2: Trivy | Поиск уязвимостей и секретов, политика блокировки. В отчёте указаны версия и дата базы Trivy | `scripts/ci.sh scan`, `scripts/cihelper.py` | `.local/artifacts/*/trivy-summary.json` | ✅ |

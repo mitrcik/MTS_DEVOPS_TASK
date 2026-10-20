@@ -69,8 +69,8 @@ demo-no-metrics: ## Релиз при недоступном Prometheus → gate
 	@scripts/demo-no-metrics.sh
 
 .PHONY: demo-alert
-demo-alert: ## Реальный сбой → алерт firing → восстановление → resolved
-	@$(BGCTL) demo-alert
+demo-alert: ## Реальный сбой → алерт firing → восстановление → resolved (HOLD=60 — держать сбой для показа)
+	@ALERT_HOLD_SECONDS="$(HOLD)" $(BGCTL) demo-alert
 
 .PHONY: recover
 recover: ## Восстановить стенд после прерванного релиза (вернуть трафик на подтверждённый релиз)

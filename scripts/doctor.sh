@@ -151,8 +151,8 @@ check_url() {
   # -L: загрузки GitHub Releases отдаются с другого хоста (release-assets.githubusercontent.com);
   # недоступная цель перенаправления — ошибка curl, поэтому учитывается и его код завершения
   code="$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 15 -I "${url}" 2>/dev/null)" || rc=$?
-  if [[ ${rc} -eq 0 && "${code}" =~ ^(2|401|403|405) ]]; then pass "доступен ${name}"
-  else warns "недоступен ${name} (${url}, HTTP ${code:-000}, curl ${rc})"; fi
+  if [[ ${rc} -eq 0 && "${code}" =~ ^(2|401|403|405) ]]; then pass "есть доступ: ${name}"
+  else warns "нет доступа: ${name} (${url}, HTTP ${code:-000}, curl ${rc})"; fi
 }
 if [[ ! -x "${LOCAL_DIR}/bin/helm" || ! -x "${LOCAL_DIR}/bin/trivy" ]]; then
   check_url "dl.k8s.io (kubectl)" "https://dl.k8s.io/release/stable.txt"

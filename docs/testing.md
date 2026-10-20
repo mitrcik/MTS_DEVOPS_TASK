@@ -9,6 +9,7 @@
 |---|---|---|---|
 | Unit: приложение (26) | Расчёт стоимости и округление, валидация (422), ответы 401/404, состояния Ready/не Ready, детерминированность учебных неисправностей, перечитывание токенов при ротации, кардинальность меток, отсутствие токена в логах | `app/tests/` | `scripts/ci.sh test` (pytest в образе `target=test`, read-only FS, UID 10001) |
 | Unit: gate (17) | Gate — автоматическая проверка релиза по метрикам. Нет данных, NaN, пустой вектор, мало трафика или устаревшие серии → провал. Также проверяются доля ошибок, p95, доля трафика кандидата, ранняя остановка и определение момента переключения | `scripts/tests/test_gate.py` | `scripts/ci.sh test` |
+| Unit: отчёт (1) | Markdown-отчёт о релизе: длинные детали проверок и символ «\|» в сообщениях об ошибках не ломают таблицу | `scripts/tests/test_report.py` | `scripts/ci.sh test` |
 | Правила Prometheus (6 групп) | Алерт пробы проходит pending → firing → resolved. Алерт «нет данных». Доля 5xx с порогом трафика. Нулевой трафик не даёт ложного алерта. p95 по histogram | `observability/tests/rules.test.yml` | `scripts/ci.sh validate` (`promtool test rules`) |
 | Статические проверки | ruff, yamllint, shellcheck, поиск секретов в Git и Trivy fs, `helm lint --strict` и JSON-схемы (тег вместо digest отклоняется), `promtool check config`, `amtool check-config`, проверка дашборда и исключений Trivy | `scripts/ci.sh lint validate` | `make ci` |
 | Интеграция / приёмка (15 сценариев) | Сквозные (E2E) проверки на реальном стенде, список ниже | `scripts/e2e.sh` | `make test-e2e` |

@@ -133,6 +133,9 @@ release id → 10 с проверки без ошибок → `rolled_back` (к�
 3. Алерт доходит до Alertmanager (маршрут `team-oncall-critical`).
 4. Реплики восстанавливаются, и через ≈ 10 с алерт переходит в resolved.
 
+Без паузы алерт виден в Alertmanager всего 5–15 с. Для показа зрителям `make demo-alert HOLD=60`
+держит сбой ещё 60 с после доставки алерта.
+
 Таймлайн сохраняется в `.local/reports/alert-demo-*.json`. Правила алертов дополнительно покрыты
 `promtool test rules`.
 
